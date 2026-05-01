@@ -48,20 +48,21 @@ def extract_activations(
     batch_size: int = 8,
 ) -> dict[int, np.ndarray]:
     """
-    Returns dict: layer_idx → np.ndarray of shape (n_texts, hidden_dim).
+    Returns dict: resolved_layer_idx → np.ndarray of shape (n_texts, hidden_dim).
+    Keys are the positive indices as stored by the extractor hooks.
     """
-    all_by_layer: dict[int, list[np.ndarray]] = {idx: [] for idx in layer_indices}
+    all_by_layer: dict[int, list[np.ndarray]] = {}
 
     for i in range(0, len(texts), batch_size):
         batch = texts[i: i + batch_size]
         hs_dict = get_hidden_states_batch(model, tokenizer, batch, layer_indices)
         for layer_idx, tensor in hs_dict.items():
-            all_by_layer[layer_idx].append(tensor.numpy())
+            all_by_layer.setdefault(layer_idx, []).append(tensor.numpy())
 
-    return {k: np.concatenate(v, axis=0) for k, v in all_by_layer.items() if v}
+    return {k: np.concatenate(v, axis=0) for k, v in all_by_layer.items()}
 
 
-def gmm_bimodality_score(activations: np.ndarray, n_components: int = 2) -> float:
+def gmm_bimodality_score(activations: np.ndarray) -> float:
     """
     Fit a 2-component GMM and return a bimodality score:
     log-likelihood ratio of k=2 vs k=1, normalized by n_samples.
@@ -76,11 +77,11 @@ def gmm_bimodality_score(activations: np.ndarray, n_components: int = 2) -> floa
     X_pca = pca.fit_transform(X)
 
     try:
-        gmm2 = GaussianMixture(n_components=2, covariance_type="full", random_state=42, max_iter=200)
+        gmm2 = GaussianMixture(n_components=2, covariance_type="full", random_state=42, max_iter=200, reg_covar=1e-3)
         gmm2.fit(X_pca)
         ll2 = gmm2.score(X_pca)
 
-        gmm1 = GaussianMixture(n_components=1, covariance_type="full", random_state=42, max_iter=200)
+        gmm1 = GaussianMixture(n_components=1, covariance_type="full", random_state=42, max_iter=200, reg_covar=1e-3)
         gmm1.fit(X_pca)
         ll1 = gmm1.score(X_pca)
 
@@ -153,16 +154,18 @@ def compute_s2_score(
         acts_pp_base = extract_activations(model, tokenizer, pp_bases, layer_indices[-1:], batch_size)
         acts_pp_pert = extract_activations(model, tokenizer, pp_pert, layer_indices[-1:], batch_size)
 
-        last_layer = layer_indices[-1]
-        if last_layer in acts_pp_base and last_layer in acts_pp_pert:
+        # Use whatever resolved key was returned (extractor normalises to positive index)
+        shared_keys = set(acts_pp_base) & set(acts_pp_pert)
+        if shared_keys:
+            last_layer = max(shared_keys)
             consistency_score = representation_consistency_score(
                 acts_pp_base[last_layer], acts_pp_pert[last_layer]
             )
 
     # Normalize by clean reference if given
     norm_bimodality = mean_bimodality
-    if clean_reference_score is not None:
-        norm_bimodality = mean_bimodality / (clean_reference_score + 1e-9)
+    if clean_reference_score is not None and clean_reference_score > 1e-6:
+        norm_bimodality = np.clip(mean_bimodality / clean_reference_score, 0, 10.0)
 
     s2 = 0.6 * norm_bimodality + 0.4 * consistency_score
 

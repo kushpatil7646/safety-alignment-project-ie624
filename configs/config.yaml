@@ -72,6 +72,6 @@ evaluation:
     - "f1"
   output_dir: "results"
 
-hf_cache_dir: "/scratch/hf_cache"   # set to writable path on server
-device: "auto"                       # "auto", "cuda", "cpu"
-dtype: "float16"                     # float16 for GPU, float32 for CPU
+hf_cache_dir: null          # overridden by HF_HOME env var set in SLURM script
+device: "auto"
+dtype: "float16"

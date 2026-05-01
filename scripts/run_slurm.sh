@@ -1,41 +1,52 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #SBATCH --job-name=backdoor_detect
-#SBATCH --output=logs/slurm_%j.out
-#SBATCH --error=logs/slurm_%j.err
-#SBATCH --time=12:00:00
+#SBATCH --account=cminds_anandi
+#SBATCH --partition=cn4_mangala
+#SBATCH --qos=mangala
+#SBATCH --nodes=1
 #SBATCH --gres=gpu:1
-#SBATCH --mem=64G
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --partition=gpu
+#SBATCH --mem=80G
+#SBATCH --time=48:00:00
+#SBATCH --output=/users/student/idddp/kushpatil/Safety_algn/logs/backdoor_detect_%j.out
 
-# Anandi / IITB HPC SLURM job script
-# Submit with: sbatch scripts/run_slurm.sh [--test]
+set -e
 
-set -euo pipefail
-
-cd "$(dirname "$0")/.."
-
+echo "======================================================"
 echo "Job ID     : $SLURM_JOB_ID"
 echo "Node       : $SLURM_NODELIST"
 echo "Start time : $(date)"
+echo "======================================================"
 
-# Load modules if available (adjust for your cluster)
-module load cuda/12.1 2>/dev/null || true
-module load python/3.10 2>/dev/null || true
+source /users/student/idddp/kushpatil/miniconda3/etc/profile.d/conda.sh
+conda activate myenv
 
-# Activate conda env if it exists
-if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
-    source "$HOME/miniconda3/etc/profile.d/conda.sh"
-    conda activate safety_algn 2>/dev/null || true
-fi
+cd /users/student/idddp/kushpatil/Safety_algn
+mkdir -p logs results
 
-# Set HF cache
+# Install umap-learn if not present
+python3 -c "import umap" 2>/dev/null || pip install umap-learn --quiet
+
+# HF cache on scratch (fast NVMe, avoid quota issues)
 export HF_HOME="/scratch/$USER/hf_cache"
 export TRANSFORMERS_CACHE="$HF_HOME"
-mkdir -p "$HF_HOME" logs
+export HF_DATASETS_CACHE="$HF_HOME/datasets"
+mkdir -p "$HF_HOME"
 
-# Run
-MODE=${1:---full}
-bash scripts/run_experiment.sh $MODE
+echo ""
+echo "Python : $(python3 --version)"
+echo "CUDA   : $(python3 -c 'import torch; print(torch.cuda.get_device_name(0))')"
+echo "HF cache: $HF_HOME"
+echo ""
 
-echo "End time: $(date)"
+# ── Run the full experiment ────────────────────────────────────────────────────
+python3 -m src.evaluate \
+    --config configs/config.yaml \
+    --log-level INFO
+
+echo ""
+echo "======================================================"
+echo "Experiment complete: $(date)"
+echo "Results in: /users/student/idddp/kushpatil/Safety_algn/results/"
+echo "======================================================"

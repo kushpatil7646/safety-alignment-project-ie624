@@ -4,7 +4,6 @@ Handles HuggingFace model loading with caching, device placement, and hook regis
 """
 
 import logging
-import os
 from typing import Optional
 
 import torch
@@ -33,7 +32,11 @@ def load_model_and_tokenizer(
         tokenizer.pad_token = tokenizer.eos_token
 
     if device == "auto":
-        device_map = "auto"
+        if not torch.cuda.is_available():
+            device_map = "cpu"
+            dtype = torch.float32
+        else:
+            device_map = "auto"
     elif device == "cpu":
         device_map = "cpu"
         dtype = torch.float32
@@ -43,7 +46,7 @@ def load_model_and_tokenizer(
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         cache_dir=cache_dir,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map=device_map,
     )
     model.eval()
@@ -69,7 +72,14 @@ class HiddenStateExtractor:
         # GPT-2 style
         elif hasattr(self.model, "transformer") and hasattr(self.model.transformer, "h"):
             layers = self.model.transformer.h
+        # Fallback: search for any ModuleList with >4 blocks
         else:
+            import torch.nn as nn
+            for _, mod in self.model.named_modules():
+                if isinstance(mod, nn.ModuleList) and len(mod) > 4:
+                    layers = mod
+                    break
+        if layers is None:
             raise ValueError("Cannot locate transformer layers in model architecture.")
 
         n = len(layers)
@@ -84,10 +94,8 @@ class HiddenStateExtractor:
         self._hidden_states = {}
         for layer_idx, layer in self._resolve_layers():
             def make_hook(idx):
-                def hook(module, input, output):
-                    # output is a tuple; first element is hidden state tensor
+                def hook(__module, __input, output):
                     hs = output[0] if isinstance(output, tuple) else output
-                    # mean-pool over sequence dimension → shape (batch, hidden)
                     self._hidden_states[idx] = hs[:, -1, :].detach().cpu().float()
                 return hook
             h = layer.register_forward_hook(make_hook(layer_idx))
@@ -105,7 +113,7 @@ class HiddenStateExtractor:
         self.register()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *__):
         self.remove()
 
 
@@ -114,7 +122,6 @@ def get_output_logprobs(
     model,
     tokenizer,
     texts: list[str],
-    max_new_tokens: int = 50,
     top_k: int = 50,
 ) -> list[torch.Tensor]:
     """
@@ -131,8 +138,8 @@ def get_output_logprobs(
     ).to(device)
 
     outputs = model(**inputs)
-    # logits shape: (batch, seq_len, vocab_size)
-    last_logits = outputs.logits[:, -1, :]  # (batch, vocab)
+    # cast to float32 before softmax to avoid fp16 overflow
+    last_logits = outputs.logits[:, -1, :].float()  # (batch, vocab)
     log_probs = torch.log_softmax(last_logits, dim=-1)
 
     # restrict to top_k for efficiency
