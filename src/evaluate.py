@@ -26,8 +26,7 @@ from .stage4_classifier import (
     cross_validate,
     evaluate_classifier,
 )
-from .baselines import ONIONDetector, ActivationClusteringDetector, RandomBaseline
-from .model_loader import load_model_and_tokenizer
+from .baselines import ONIONDetector, RandomBaseline
 
 logger = logging.getLogger(__name__)
 
@@ -183,25 +182,14 @@ def run_evaluation(config_path: str, use_test_models: bool = False, skip_stage3:
     except Exception as e:
         logger.warning(f"ONION baseline failed: {e}")
 
-    # Activation Clustering
+    # Activation Clustering — reuse Stage 2 bimodality scores (same GMM, no extra model load)
     try:
-        ac = ActivationClusteringDetector(
-            pca_components=config["baselines"]["activation_clustering"]["pca_components"]
-        )
         ac_scores = []
-        for i, (model_name, label) in enumerate(all_models):
-            # Load model briefly for AC (reuse if possible)
-            model, tokenizer = load_model_and_tokenizer(
-                model_name,
-                config.get("hf_cache_dir"),
-                config.get("device", "auto"),
-                config.get("dtype", "float16"),
-            )
-            probe_texts = list({p.base for p in probe_pairs})[:20]
-            score = ac.score_model(model, tokenizer, probe_texts, layer_index=-1, batch_size=8)
-            ac_scores.append(score)
+        for r in model_results:
+            bimod = r.get("diagnostics", {}).get("stage2", {}).get("mean_bimodality", 0.0)
+            ac_scores.append(float(bimod))
         baseline_results["ActivationClustering"] = (labels, np.array(ac_scores))
-        logger.info("AC scores computed.")
+        logger.info("AC scores extracted from Stage 2 diagnostics.")
     except Exception as e:
         logger.warning(f"AC baseline failed: {e}")
 

@@ -62,7 +62,7 @@ def run_pipeline_for_model(
             model, tokenizer, probe_pairs,
             top_k=cfg1.get("kl_top_k", 50),
             tail_pct=cfg1.get("tail_threshold_pct", 95),
-            batch_size=8,
+            batch_size=cfg1.get("batch_size", 16),
             clean_reference=clean_reference.get("kl_by_type") if clean_reference else None,
         )
     except Exception as e:
@@ -73,8 +73,8 @@ def run_pipeline_for_model(
     try:
         s2, diag2 = compute_s2_score(
             model, tokenizer, probe_pairs,
-            layer_indices=cfg2.get("layers", [-1, -4, -8]),
-            batch_size=8,
+            layer_indices=cfg2.get("layers", [-1]),
+            batch_size=cfg2.get("batch_size", 16),
             clean_reference_score=clean_reference.get("bimodality") if clean_reference else None,
         )
     except Exception as e:
@@ -85,12 +85,10 @@ def run_pipeline_for_model(
     try:
         s3, diag3 = compute_s3_score(
             model, tokenizer, probe_pairs,
-            beam_width=cfg3.get("beam_width", 10),
-            max_trigger_len=cfg3.get("max_trigger_len", 5),
-            top_vocab_tokens=cfg3.get("top_vocab_tokens", 500),
-            n_search_inputs=cfg3.get("n_search_inputs", 20),
+            top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
+            n_search_inputs=cfg3.get("n_search_inputs", 10),
             top_k=cfg1.get("kl_top_k", 50),
-            batch_size=4,
+            batch_size=cfg1.get("batch_size", 16),
             clean_reference_score=clean_reference.get("trigger_score") if clean_reference else None,
         )
     except Exception as e:
@@ -126,7 +124,7 @@ def build_clean_reference(
     """
     from .stage1_behavioral import compute_kl_divergences
     from .stage2_representation import gmm_bimodality_score, extract_activations
-    from .stage3_trigger_search import beam_search_trigger
+    from .stage3_trigger_search import greedy_trigger_scan
 
     model, tokenizer = load_model_and_tokenizer(
         clean_model_name,
@@ -156,13 +154,11 @@ def build_clean_reference(
     import random
     random.seed(42)
     search_inputs = random.sample(all_bases, min(10, len(all_bases)))
-    _, trigger_score = beam_search_trigger(
+    _, trigger_score = greedy_trigger_scan(
         model, tokenizer, search_inputs,
-        beam_width=cfg3.get("beam_width", 5),
-        max_trigger_len=2,
-        top_vocab_tokens=100,
+        top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
         top_k=cfg1.get("kl_top_k", 50),
-        batch_size=4,
+        batch_size=cfg1.get("batch_size", 16),
     )
 
     return {

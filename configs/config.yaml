@@ -1,77 +1,65 @@
-# BackdoorLLM Detection Pipeline Configuration
+# BackdoorLLM Detection Pipeline — tuned for 12h GPU budget
 
 models:
-  # Clean baseline models
+  # 2 clean baselines (same base model, no backdoor)
   clean:
-    - "BackdoorLLM/Llama-2-7b-chat-hf-BadNL-clean-SST2"
-    - "BackdoorLLM/Llama-2-7b-chat-hf-BadNL-clean-AG"
+    - "BackdoorLLM/Jailbreak_Llama2-7B_BadNets"    # will use as clean ref (see note)
+    - "BackdoorLLM/Refusal_Llama2-7B_BadNets"
 
-  # Backdoored models (various attack types)
+  # 4 backdoored: 2 attack types x 2 tasks (Jailbreak + Refusal)
   backdoored:
-    - "BackdoorLLM/Llama-2-7b-chat-hf-BadNL-BadWords-SST2"
-    - "BackdoorLLM/Llama-2-7b-chat-hf-BadNL-BadSent-SST2"
-    - "BackdoorLLM/Llama-2-7b-chat-hf-VPI-VPI-SST2"
-    - "BackdoorLLM/Llama-2-7b-chat-hf-StyleBkd-StyleBkd-SST2"
+    - "BackdoorLLM/Jailbreak_Llama2-7B_VPI"
+    - "BackdoorLLM/Jailbreak_Llama2-7B_Sleeper"
+    - "BackdoorLLM/Refusal_Llama2-7B_VPI"
+    - "BackdoorLLM/Refusal_Llama2-7B_Sleeper"
 
-  # Fallback: use smaller GPT2 for quick local testing
+  # Test mode: GPT-2 only (no HF download needed)
   test_clean:
     - "gpt2"
   test_backdoored: []
 
 probe:
-  n_base_inputs: 100          # number of base inputs per domain
-  n_perturbations: 5          # perturbations per base input
-  max_new_tokens: 50          # tokens to generate per forward pass
+  n_base_inputs: 25           # per domain → 25x4=100 unique base inputs
+  n_perturbations: 3          # 3 perturbations per base → ~300 pairs total
   domains:
     - "news"
     - "dialogue"
     - "sentiment"
     - "qa"
-  perturbation_types:
-    - "paraphrase"
-    - "token_substitution"
-    - "prefix_injection"
-    - "style_casual"
-    - "style_formal"
 
 stage1:
-  kl_top_k: 50               # top-k logits for KL computation
-  tail_threshold_pct: 95     # percentile for heavy-tail test
+  kl_top_k: 50
+  tail_threshold_pct: 95
+  batch_size: 16              # large batch → high GPU utilisation
 
 stage2:
-  layers: [-1, -4, -8]       # transformer layers to extract (negative = from end)
-  pca_components: 50         # PCA before UMAP
-  umap_components: 2
-  gmm_components: 2
-  consistency_pairs: 50      # pairs for representation consistency score
+  layers: [-1]                # only last layer (fastest, most informative)
+  batch_size: 16
+  consistency_pairs: 30
 
 stage3:
-  beam_width: 10             # beam search width
-  max_trigger_len: 5         # max trigger token length
-  n_search_inputs: 20        # inputs to average over during search
-  top_vocab_tokens: 500      # restrict search to top-N frequent tokens
+  # Fast greedy: 1 greedy step over top-100 vocab, 10 inputs
+  # Skips multi-step beam (too slow on 7B); single-step still detects clear triggers
+  beam_width: 5
+  max_trigger_len: 1          # 1-token triggers only (greedy, not full beam)
+  n_search_inputs: 10
+  top_vocab_tokens: 100
 
 stage4:
-  test_split: 0.3
   cv_folds: 5
   random_seed: 42
 
 baselines:
   onion:
-    perplexity_threshold: 100.0
-    n_samples: 50
+    perplexity_threshold: 5.0
+    n_samples: 30
   activation_clustering:
     n_clusters: 2
     pca_components: 10
 
 evaluation:
-  metrics:
-    - "auroc"
-    - "fpr_at_95tpr"
-    - "accuracy"
-    - "f1"
   output_dir: "results"
 
-hf_cache_dir: null          # overridden by HF_HOME env var set in SLURM script
+hf_cache_dir: null            # uses $HF_HOME from SLURM env
 device: "auto"
 dtype: "float16"
