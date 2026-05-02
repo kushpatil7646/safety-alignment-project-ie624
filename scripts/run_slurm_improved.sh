@@ -1,0 +1,46 @@
+#!/bin/bash
+#SBATCH --job-name=bdoor_improved
+#SBATCH --account=cminds_anandi
+#SBATCH --partition=cn3_anandi
+#SBATCH --qos=anandi
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=80G
+#SBATCH --time=24:00:00
+#SBATCH --output=/users/student/idddp/kushpatil/Safety_algn/logs/improved_%j.out
+
+set -e
+
+echo "======================================================"
+echo "IMPROVED RUN: multi-layer S2, dual-pos S3, 6-feature S4"
+echo "Job ID     : $SLURM_JOB_ID"
+echo "Node       : $SLURM_NODELIST"
+echo "Start time : $(date)"
+echo "======================================================"
+
+source /users/student/idddp/kushpatil/miniconda3/etc/profile.d/conda.sh
+conda activate myenv
+
+cd /users/student/idddp/kushpatil/Safety_algn
+mkdir -p logs results_improved
+
+export HF_HOME="/users/student/idddp/kushpatil/.cache/huggingface"
+export TRANSFORMERS_CACHE="$HF_HOME"
+export HF_DATASETS_CACHE="$HF_HOME/datasets"
+# HF_TOKEN must be set in your environment before sbatch
+: "${HF_TOKEN:?HF_TOKEN is not set — run: export HF_TOKEN=<your_token>}"
+
+echo "Python : $(python3 --version)"
+echo "CUDA   : $(python3 -c 'import torch; print(torch.cuda.get_device_name(0))')"
+
+python3 -m src.evaluate \
+    --config configs/config.yaml \
+    --output-dir results_improved \
+    --log-level INFO
+
+echo "======================================================"
+echo "Improved run complete: $(date)"
+echo "Results in: results_improved/"
+echo "======================================================"
