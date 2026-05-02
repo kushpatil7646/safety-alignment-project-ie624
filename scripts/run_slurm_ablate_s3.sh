@@ -2,6 +2,7 @@
 #SBATCH --job-name=bdoor_ablate_s3
 #SBATCH --account=cminds_anandi
 #SBATCH --partition=cn3_anandi
+#SBATCH --qos=anandi
 
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
