@@ -27,14 +27,12 @@ conda activate myenv
 cd /users/student/idddp/kushpatil/Safety_algn
 mkdir -p logs results_gpu_ablate_s3
 
-python3 -c "import umap" 2>/dev/null || pip install umap-learn --quiet
 
-export HF_HOME="/scratch/$USER/hf_cache"
+export HF_HOME="/users/student/idddp/kushpatil/.cache/huggingface"
 export TRANSFORMERS_CACHE="$HF_HOME"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 # HF_TOKEN must be set in your environment before sbatch (e.g. export HF_TOKEN=<your_token>)
 : "${HF_TOKEN:?HF_TOKEN is not set — run: export HF_TOKEN=<your_token>}"
-mkdir -p "$HF_HOME"
 
 echo ""
 echo "Python : $(python3 --version)"
