@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=bdoor_ablate_s2
 #SBATCH --account=cminds_anandi
-#SBATCH --partition=cn4_mangala
-#SBATCH --qos=mangala
+#SBATCH --partition=cn3_anandi
+
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1

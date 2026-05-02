@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=backdoor_detect
 #SBATCH --account=cminds_anandi
-#SBATCH --partition=cn4_mangala
-#SBATCH --qos=mangala
+#SBATCH --partition=cn3_anandi
+
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=80G
-#SBATCH --time=48:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=/users/student/idddp/kushpatil/Safety_algn/logs/backdoor_detect_%j.out
 
 set -e
