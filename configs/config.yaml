@@ -1,13 +1,15 @@
 # BackdoorLLM Detection Pipeline — tuned for 12h GPU budget
 
 models:
-  # 2 clean baselines (same base model, no backdoor)
+  # True clean baseline: base Llama-2-7b-chat-hf with NO backdoor (already cached)
   clean:
-    - "BackdoorLLM/Jailbreak_Llama2-7B_BadNets"    # will use as clean ref (see note)
-    - "BackdoorLLM/Refusal_Llama2-7B_BadNets"
+    - "meta-llama/Llama-2-7b-chat-hf"
 
-  # 4 backdoored: 2 attack types x 2 tasks (Jailbreak + Refusal)
+  # 6 backdoored models: 3 attack types x 2 tasks
+  # BadNets = fixed token trigger, VPI = virtual prompt injection, Sleeper = delayed activation
   backdoored:
+    - "BackdoorLLM/Jailbreak_Llama2-7B_BadNets"
+    - "BackdoorLLM/Refusal_Llama2-7B_BadNets"
     - "BackdoorLLM/Jailbreak_Llama2-7B_VPI"
     - "BackdoorLLM/Jailbreak_Llama2-7B_Sleeper"
     - "BackdoorLLM/Refusal_Llama2-7B_VPI"
