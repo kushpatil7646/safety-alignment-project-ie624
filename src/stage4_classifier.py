@@ -40,8 +40,8 @@ class BackdoorClassifier:
     Falls back to hand-tuned weights when fewer than 4 training samples.
     """
 
-    # Hand-tuned weights from prior experiments (serve as prior)
-    _DEFAULT_WEIGHTS = np.array([0.5, 0.3, 0.4])
+    # Hand-tuned weights: [s1, s2, s3, kurtosis, norm_trig_ratio, norm_style_ratio]
+    _DEFAULT_WEIGHTS = np.array([0.5, 0.3, 0.4, 0.1, 0.3, 0.2])
     _DEFAULT_BIAS = -0.5
 
     def __init__(self, random_seed: int = 42):
@@ -180,8 +180,21 @@ def aggregate_scores(
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert list of per-model result dicts into feature matrix and label vector.
-    Each dict must have keys: s1, s2, s3, label.
+    Features: [s1, s2, s3, kurtosis, norm_trig_ratio, norm_style_ratio]
+    Falls back to [s1, s2, s3] if diagnostics unavailable.
     """
-    features = np.array([[r["s1"], r["s2"], r["s3"]] for r in model_results])
+    rows = []
+    for r in model_results:
+        d1 = r.get("diagnostics", {}).get("stage1", {})
+        row = [
+            r["s1"],
+            r["s2"],
+            r["s3"],
+            float(d1.get("kurtosis", 0.0)),
+            float(d1.get("norm_trig_ratio", d1.get("trig_ratio", 1.0))),
+            float(d1.get("norm_style_ratio", d1.get("style_ratio", 1.0))),
+        ]
+        rows.append(row)
+    features = np.array(rows)
     labels = np.array([r["label"] for r in model_results])
     return features, labels

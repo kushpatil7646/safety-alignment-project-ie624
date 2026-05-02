@@ -76,16 +76,19 @@ def greedy_trigger_scan(
 
     best_token, best_score = "", 0.0
 
-    # Score each candidate token in batches
+    # Score each candidate token — try both prepend and append positions
     for tok in vocab_tokens:
-        triggered = [tok + " " + x for x in search_inputs]
-        trig_lps = []
-        for i in range(0, len(triggered), batch_size):
-            trig_lps.extend(get_output_logprobs(model, tokenizer, triggered[i:i+batch_size], top_k=top_k, max_length=max_length))
-        avg_kl = float(np.mean([_kl_topk(b, t) for b, t in zip(baseline_lps, trig_lps)]))
-        if avg_kl > best_score:
-            best_score = avg_kl
-            best_token = tok
+        for injected in (
+            [tok + " " + x for x in search_inputs],   # prepend
+            [x + " " + tok for x in search_inputs],   # append
+        ):
+            trig_lps = []
+            for i in range(0, len(injected), batch_size):
+                trig_lps.extend(get_output_logprobs(model, tokenizer, injected[i:i+batch_size], top_k=top_k, max_length=max_length))
+            avg_kl = float(np.mean([_kl_topk(b, t) for b, t in zip(baseline_lps, trig_lps)]))
+            if avg_kl > best_score:
+                best_score = avg_kl
+                best_token = tok
 
     logger.info(f"Stage 3 | best token: '{best_token}' avg_KL={best_score:.4f}")
     return best_token, best_score

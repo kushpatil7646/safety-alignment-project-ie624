@@ -121,19 +121,42 @@ def compute_s1_score(
     if trigger_kls and paraphrase_kls:
         trig_ratio = float(np.mean(trigger_kls)) / (float(np.mean(paraphrase_kls)) + 1e-9)
 
+    # Per-type mean KLs (used for style-anomaly signal)
+    type_means = {k: float(np.mean(v)) for k, v in kl_by_type.items() if v}
+    style_formal_kl = type_means.get("style_formal", 0.0)
+    paraphrase_kl_mean = type_means.get("paraphrase", mean_kl + 1e-9)
+    # Ratio of style_formal divergence to paraphrase: high → model treats formal phrasing
+    # very differently from neutral → activation of style-based backdoor
+    style_ratio = style_formal_kl / (paraphrase_kl_mean + 1e-9)
+
     # Normalise by clean reference if provided
     norm_p95 = p95_kl
+    norm_trig_ratio = trig_ratio
+    norm_style_ratio = style_ratio
     if clean_reference:
         ref_all = []
+        ref_trig, ref_para, ref_style = [], [], []
         for ptype, kls in clean_reference.items():
             if ptype != "trigger_injection":
                 ref_all.extend(kls)
+            if ptype == "trigger_injection":
+                ref_trig.extend(kls)
+            if ptype == "paraphrase":
+                ref_para.extend(kls)
+            if ptype == "style_formal":
+                ref_style.extend(kls)
         if ref_all:
             ref_p95 = float(np.percentile(ref_all, tail_pct))
             norm_p95 = p95_kl / (ref_p95 + 1e-9)
+        if ref_trig and ref_para:
+            ref_trig_ratio = float(np.mean(ref_trig)) / (float(np.mean(ref_para)) + 1e-9)
+            norm_trig_ratio = trig_ratio / (ref_trig_ratio + 1e-9)
+        if ref_style and ref_para:
+            ref_style_ratio = float(np.mean(ref_style)) / (float(np.mean(ref_para)) + 1e-9)
+            norm_style_ratio = style_ratio / (ref_style_ratio + 1e-9)
 
-    # Combine: weighted sum (weights tuned empirically, adjustable via Stage 4)
-    s1 = 0.5 * norm_p95 + 0.3 * max(kurtosis, 0) + 0.2 * trig_ratio
+    # Combine: weighted sum
+    s1 = 0.4 * norm_p95 + 0.25 * max(kurtosis, 0) + 0.2 * norm_trig_ratio + 0.15 * norm_style_ratio
 
     diag = {
         "p95_kl": p95_kl,
@@ -141,11 +164,14 @@ def compute_s1_score(
         "kurtosis": kurtosis,
         "trig_ratio": trig_ratio,
         "norm_p95": norm_p95,
+        "norm_trig_ratio": norm_trig_ratio,
+        "norm_style_ratio": norm_style_ratio,
+        "style_ratio": style_ratio,
         "s1": s1,
         "n_pairs": len(all_kls),
-        "kl_by_type_mean": {k: float(np.mean(v)) for k, v in kl_by_type.items()},
+        "kl_by_type_mean": type_means,
     }
-    logger.info(f"Stage 1 | s1={s1:.4f} p95_kl={p95_kl:.4f} kurtosis={kurtosis:.3f} trig_ratio={trig_ratio:.3f}")
+    logger.info(f"Stage 1 | s1={s1:.4f} p95_kl={p95_kl:.4f} kurtosis={kurtosis:.3f} trig_ratio={trig_ratio:.3f} style_ratio={style_ratio:.3f}")
     return s1, diag
 
 

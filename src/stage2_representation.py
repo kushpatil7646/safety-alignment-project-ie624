@@ -138,14 +138,14 @@ def compute_s2_score(
     logger.info(f"  Extracting activations for {len(all_bases)} base inputs ...")
     acts_base = extract_activations(model, tokenizer, all_bases, layer_indices, batch_size, max_length)
 
-    # Per-layer scores
-    bimodality_scores = []
+    # Per-layer scores — use max across layers: backdoor affects at least one layer
+    bimodality_by_layer = {}
     for layer_idx, acts in acts_base.items():
         score = gmm_bimodality_score(acts)
-        bimodality_scores.append(score)
+        bimodality_by_layer[layer_idx] = score
         logger.debug(f"  Layer {layer_idx}: bimodality_score={score:.4f}")
 
-    mean_bimodality = float(np.mean(bimodality_scores)) if bimodality_scores else 0.0
+    mean_bimodality = float(np.max(list(bimodality_by_layer.values()))) if bimodality_by_layer else 0.0
 
     # Representation consistency (paraphrase pairs)
     consistency_score = 0.0
@@ -172,7 +172,7 @@ def compute_s2_score(
     s2 = 0.6 * norm_bimodality + 0.4 * consistency_score
 
     diag = {
-        "bimodality_per_layer": {k: gmm_bimodality_score(v) for k, v in acts_base.items()},
+        "bimodality_per_layer": bimodality_by_layer,
         "mean_bimodality": mean_bimodality,
         "consistency_score": consistency_score,
         "norm_bimodality": norm_bimodality,
