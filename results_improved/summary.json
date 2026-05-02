@@ -1,0 +1,36 @@
+{
+  "our_method": {
+    "auroc": 1.0,
+    "fpr_at_95tpr": 0.0,
+    "accuracy": 1.0,
+    "f1": 1.0,
+    "n_samples": 7,
+    "n_backdoored": 6,
+    "n_clean": 1
+  },
+  "baselines": {
+    "ONION": {
+      "auroc": 0.5,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.14285714285714285
+    },
+    "ActivationClustering": {
+      "auroc": 0.0,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.8571428571428571
+    },
+    "Random": {
+      "auroc": 0.5,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.8571428571428571
+    },
+    "OurMethod": {
+      "auroc": 1.0,
+      "fpr_at_95tpr": 0.0,
+      "accuracy": 1.0
+    }
+  },
+  "n_models": 7,
+  "n_clean": 1,
+  "n_backdoored": 6
+}
