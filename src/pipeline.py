@@ -133,13 +133,17 @@ def build_clean_reference(
     clean_model_name: str,
     probe_pairs: list[ProbePair],
     config: dict,
+    skip_stages: Optional[set] = None,
 ) -> dict:
     """
     Run pipeline on a known-clean model to produce normalisation baselines.
+    Only computes baselines for stages that are not skipped.
     """
     from .stage1_behavioral import compute_kl_divergences
     from .stage2_representation import gmm_bimodality_score, extract_activations
     from .stage3_trigger_search import greedy_trigger_scan
+
+    skip = skip_stages or set()
 
     model, tokenizer = load_model_and_tokenizer(
         clean_model_name,
@@ -152,32 +156,39 @@ def build_clean_reference(
     cfg2 = config.get("stage2", {})
     cfg3 = config.get("stage3", {})
     max_length = config.get("max_length", 512)
-
-    kl_by_type = compute_kl_divergences(
-        model, tokenizer, probe_pairs,
-        top_k=cfg1.get("kl_top_k", 50),
-        batch_size=8,
-        max_length=max_length,
-    )
-
-    # Bimodality baseline
     all_bases = list({p.base for p in probe_pairs})
-    layer_indices = cfg2.get("layers", [-1])
-    acts = extract_activations(model, tokenizer, all_bases[:50], layer_indices, 8, max_length=max_length)
-    bimod_scores = [gmm_bimodality_score(v) for v in acts.values()]
-    mean_bimod = float(np.mean(bimod_scores)) if bimod_scores else 1.0
 
-    # Trigger search baseline
-    import random
-    random.seed(42)
-    search_inputs = random.sample(all_bases, min(10, len(all_bases)))
-    _, trigger_score = greedy_trigger_scan(
-        model, tokenizer, search_inputs,
-        top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
-        top_k=cfg1.get("kl_top_k", 50),
-        batch_size=cfg1.get("batch_size", 16),
-        max_length=max_length,
-    )
+    # Stage 1 reference
+    kl_by_type = None
+    if 1 not in skip:
+        kl_by_type = compute_kl_divergences(
+            model, tokenizer, probe_pairs,
+            top_k=cfg1.get("kl_top_k", 50),
+            batch_size=8,
+            max_length=max_length,
+        )
+
+    # Stage 2 reference
+    mean_bimod = 1.0
+    if 2 not in skip:
+        layer_indices = cfg2.get("layers", [-1])
+        acts = extract_activations(model, tokenizer, all_bases[:50], layer_indices, 8, max_length=max_length)
+        bimod_scores = [gmm_bimodality_score(v) for v in acts.values()]
+        mean_bimod = float(np.mean(bimod_scores)) if bimod_scores else 1.0
+
+    # Stage 3 reference
+    trigger_score = 1.0
+    if 3 not in skip:
+        import random
+        random.seed(42)
+        search_inputs = random.sample(all_bases, min(10, len(all_bases)))
+        _, trigger_score = greedy_trigger_scan(
+            model, tokenizer, search_inputs,
+            top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
+            top_k=cfg1.get("kl_top_k", 50),
+            batch_size=cfg1.get("batch_size", 16),
+            max_length=max_length,
+        )
 
     return {
         "kl_by_type": kl_by_type,

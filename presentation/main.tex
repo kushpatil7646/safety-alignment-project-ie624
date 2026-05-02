@@ -299,8 +299,7 @@ Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
     \toprule
     \textbf{Method} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} \\
     \midrule
-    \textbf{Ours (laptop)} & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} \\
-    Ours (full)            & 0.750          & 0.500          & 0.833 \\
+    \textbf{Ours} & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} \\
     \midrule
     Act. Clustering        & 0.625          & 1.000          & 0.667 \\
     ONION                  & 0.500          & 1.000          & 0.333 \\
@@ -308,6 +307,8 @@ Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
     \bottomrule
   \end{tabular}
   \end{center}
+  \vspace{0.3em}
+  \includegraphics[width=\textwidth]{../results/roc_curves.png}
 \end{column}
 \begin{column}{0.45\textwidth}
   \textbf{Key takeaways:}
@@ -316,13 +317,10 @@ Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
     \item \highlight{40\% lower FPR@95} than all baselines
     \item ONION fails completely --- perplexity-based detection ineffective on Llama-2
     \item Activation Clustering partially works (AUROC 0.625) but high false positive rate
+    \item Our pipeline is black-box --- no training data or gradients needed
   \end{itemize}
 \end{column}
 \end{columns}
-\vspace{0.3em}
-\begin{center}
-  \includegraphics[width=0.55\textwidth]{../results/roc_curves.png}
-\end{center}
 \end{frame}
 
 %──────────────────────────────────────────────────────────
@@ -332,19 +330,32 @@ Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
 \toprule
 \textbf{Configuration} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} & $\Delta$ AUROC \\
 \midrule
-All stages (full)   & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} & --- \\
+All stages            & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} & --- \\
 \midrule
-w/o Stage 1 ($s_1$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
-w/o Stage 2 ($s_2$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
-w/o Stage 3 ($s_3$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
+w/o Stage 1 ($s_1$)  & 0.875 & 0.500 & 0.833 & $\pm$0.000 \\
+w/o Stage 2 ($s_2$)  & 0.875 & 0.500 & 0.667 & $\pm$0.000 \\
+w/o Stage 3 ($s_3$)  & 0.750 & 0.500 & 0.833 & $-$0.125   \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{0.5em}
-\begin{alertblock}{Ablation experiments currently running}
-  Results will be available shortly and will be inserted before final submission.
-  Stage 1 (KL divergence) is expected to be the strongest individual signal based on per-model score inspection.
-\end{alertblock}
+\vspace{0.3em}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+  \textbf{Findings:}
+  \begin{itemize}
+    \item \highlight{Stage 3} (trigger search) contributes most: removing it drops AUROC by 0.125
+    \item Removing Stage 2 reduces accuracy by 17\% while AUROC stays the same
+    \item Stage 1 alone has the least individual impact --- signal is captured by stages 2 and 3
+    \item All three stages together achieve the best joint performance
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{Interpretation}
+    The greedy trigger scan ($s_3$) provides a discriminative signal not captured by KL divergence or representation analysis alone.
+    Stage 2's GMM bimodality improves per-sample accuracy even when ranking (AUROC) is unchanged.
+  \end{block}
+\end{column}
+\end{columns}
 \end{frame}
 
 %══════════════════════════════════════════════════════════

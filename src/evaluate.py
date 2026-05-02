@@ -128,7 +128,7 @@ def run_evaluation(config_path: str, use_test_models: bool = False, skip_stage3:
     if clean_models:
         logger.info(f"Building clean reference from: {clean_models[0]}")
         try:
-            clean_reference = build_clean_reference(clean_models[0], probe_pairs[:50], config)
+            clean_reference = build_clean_reference(clean_models[0], probe_pairs[:50], config, skip_stages=skip_stages)
             logger.info("Clean reference built.")
         except Exception as e:
             logger.warning(f"Could not build clean reference: {e}")
