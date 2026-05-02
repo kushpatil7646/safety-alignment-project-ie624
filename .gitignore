@@ -1,23 +1,25 @@
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
 *.egg-info/
-dist/
-build/
-.eggs/
-*.egg
 .env
-.venv
-env/
-venv/
-results/
-logs/
+
+# HuggingFace model cache
+*.bin
+*.safetensors
+*.gguf
+hf_cache/
+
+# Large files
 *.pkl
-*.log
-*.out
-*.err
+
+# LaTeX build artifacts
+presentation/*.aux
+presentation/*.log
+presentation/*.nav
+presentation/*.out
+presentation/*.snm
+presentation/*.toc
+presentation/*.synctex.gz
+
+# Jupyter
 .ipynb_checkpoints/
-.DS_Store
-Thumbs.db

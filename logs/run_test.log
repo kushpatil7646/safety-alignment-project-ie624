@@ -1,0 +1,101 @@
+05:30:49 | INFO | __main__ | Generating probe pairs ...
+05:30:50 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/ag_news/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:50 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/fancyzhx/ag_news/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:50 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/api/resolve-cache/datasets/fancyzhx/ag_news/eb185aade064a813bc0b7f42de02595523103ca4/README.md "HTTP/1.1 200 OK"
+05:30:50 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/ag_news.py "HTTP/1.1 307 Temporary Redirect"
+05:30:51 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/fancyzhx/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/ag_news.py "HTTP/1.1 404 Not Found"
+05:30:51 | INFO | httpx | HTTP Request: HEAD https://s3.amazonaws.com/datasets.huggingface.co/datasets/datasets/ag_news/ag_news.py "HTTP/1.1 200 OK"
+05:30:52 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/ag_news/revision/eb185aade064a813bc0b7f42de02595523103ca4 "HTTP/1.1 307 Temporary Redirect"
+05:30:52 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/fancyzhx/ag_news/revision/eb185aade064a813bc0b7f42de02595523103ca4 "HTTP/1.1 200 OK"
+05:30:52 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/.huggingface.yaml "HTTP/1.1 307 Temporary Redirect"
+05:30:53 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/fancyzhx/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/.huggingface.yaml "HTTP/1.1 404 Not Found"
+05:30:53 | INFO | httpx | HTTP Request: GET https://datasets-server.huggingface.co/info?dataset=ag_news "HTTP/1.1 404 Not Found"
+05:30:53 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/ag_news/tree/eb185aade064a813bc0b7f42de02595523103ca4/data?recursive=true&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:30:53 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/fancyzhx/ag_news/tree/eb185aade064a813bc0b7f42de02595523103ca4/data?recursive=true&expand=false "HTTP/1.1 200 OK"
+05:30:54 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/ag_news/tree/eb185aade064a813bc0b7f42de02595523103ca4?recursive=false&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:30:54 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/fancyzhx/ag_news/tree/eb185aade064a813bc0b7f42de02595523103ca4?recursive=false&expand=false "HTTP/1.1 200 OK"
+05:30:54 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/dataset_infos.json "HTTP/1.1 307 Temporary Redirect"
+05:30:54 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/fancyzhx/ag_news/resolve/eb185aade064a813bc0b7f42de02595523103ca4/dataset_infos.json "HTTP/1.1 404 Not Found"
+05:30:55 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/daily_dialog/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:55 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/li2017dailydialog/daily_dialog/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:55 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/api/resolve-cache/datasets/li2017dailydialog/daily_dialog/ffde34acefcd956529c39c4fc78d993b5b7f7520/README.md "HTTP/1.1 200 OK"
+05:30:55 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/sst2/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:55 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/stanfordnlp/sst2/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:56 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/api/resolve-cache/datasets/stanfordnlp/sst2/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/README.md "HTTP/1.1 200 OK"
+05:30:56 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/sst2.py "HTTP/1.1 307 Temporary Redirect"
+05:30:56 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/stanfordnlp/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/sst2.py "HTTP/1.1 404 Not Found"
+05:30:56 | INFO | httpx | HTTP Request: HEAD https://s3.amazonaws.com/datasets.huggingface.co/datasets/datasets/sst2/sst2.py "HTTP/1.1 404 Not Found"
+05:30:56 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/sst2/revision/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb "HTTP/1.1 307 Temporary Redirect"
+05:30:57 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/stanfordnlp/sst2/revision/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb "HTTP/1.1 200 OK"
+05:30:57 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/.huggingface.yaml "HTTP/1.1 307 Temporary Redirect"
+05:30:57 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/stanfordnlp/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/.huggingface.yaml "HTTP/1.1 404 Not Found"
+05:30:57 | INFO | httpx | HTTP Request: GET https://datasets-server.huggingface.co/info?dataset=sst2 "HTTP/1.1 404 Not Found"
+05:30:58 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/sst2/tree/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/data?recursive=true&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:30:58 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/stanfordnlp/sst2/tree/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/data?recursive=true&expand=false "HTTP/1.1 200 OK"
+05:30:58 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/sst2/tree/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb?recursive=false&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:30:58 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/stanfordnlp/sst2/tree/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb?recursive=false&expand=false "HTTP/1.1 200 OK"
+05:30:59 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/dataset_infos.json "HTTP/1.1 307 Temporary Redirect"
+05:30:59 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/stanfordnlp/sst2/resolve/8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb/dataset_infos.json "HTTP/1.1 404 Not Found"
+05:30:59 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/squad/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:59 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/rajpurkar/squad/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+05:30:59 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/api/resolve-cache/datasets/rajpurkar/squad/7b6d24c440a36b6815f21b70d25016731768db1f/README.md "HTTP/1.1 200 OK"
+05:31:00 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/squad.py "HTTP/1.1 307 Temporary Redirect"
+05:31:00 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/rajpurkar/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/squad.py "HTTP/1.1 404 Not Found"
+05:31:00 | INFO | httpx | HTTP Request: HEAD https://s3.amazonaws.com/datasets.huggingface.co/datasets/datasets/squad/squad.py "HTTP/1.1 200 OK"
+05:31:00 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/squad/revision/7b6d24c440a36b6815f21b70d25016731768db1f "HTTP/1.1 307 Temporary Redirect"
+05:31:01 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/rajpurkar/squad/revision/7b6d24c440a36b6815f21b70d25016731768db1f "HTTP/1.1 200 OK"
+05:31:01 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/.huggingface.yaml "HTTP/1.1 307 Temporary Redirect"
+05:31:01 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/rajpurkar/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/.huggingface.yaml "HTTP/1.1 404 Not Found"
+05:31:01 | INFO | httpx | HTTP Request: GET https://datasets-server.huggingface.co/info?dataset=squad "HTTP/1.1 404 Not Found"
+05:31:02 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/squad/tree/7b6d24c440a36b6815f21b70d25016731768db1f/plain_text?recursive=true&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:02 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/rajpurkar/squad/tree/7b6d24c440a36b6815f21b70d25016731768db1f/plain_text?recursive=true&expand=false "HTTP/1.1 200 OK"
+05:31:02 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/squad/tree/7b6d24c440a36b6815f21b70d25016731768db1f?recursive=false&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:02 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/datasets/rajpurkar/squad/tree/7b6d24c440a36b6815f21b70d25016731768db1f?recursive=false&expand=false "HTTP/1.1 200 OK"
+05:31:02 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/dataset_infos.json "HTTP/1.1 307 Temporary Redirect"
+05:31:03 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/datasets/rajpurkar/squad/resolve/7b6d24c440a36b6815f21b70d25016731768db1f/dataset_infos.json "HTTP/1.1 404 Not Found"
+05:31:03 | INFO | __main__ | Generated 375 probe pairs.
+05:31:03 | INFO | __main__ | Models to evaluate: 1 clean, 0 backdoored
+05:31:03 | INFO | __main__ | Building clean reference from: gpt2
+05:31:04 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+05:31:04 | INFO | src.model_loader | Loading model: gpt2
+05:31:04 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+05:31:04 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/tokenizer_config.json "HTTP/1.1 200 OK"
+05:31:04 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/gpt2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:05 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/openai-community/gpt2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+05:31:05 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/gpt2/tree/main?recursive=true&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:05 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/openai-community/gpt2/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+05:31:06 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+05:31:06 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights:  49%|████▊     | 72/148 [00:00<00:00, 702.28it/s]Loading weights:  97%|█████████▋| 143/148 [00:00<00:00, 631.58it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 444.92it/s]
+05:31:07 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/generation_config.json "HTTP/1.1 200 OK"
+05:31:07 | INFO | src.model_loader | Loaded gpt2 | params: 124.4M
+05:31:10 | INFO | src.stage3_trigger_search | Stage 3: greedy scan | vocab=100 inputs=10
+05:31:14 | INFO | src.stage3_trigger_search | Stage 3 | best token: 'st' avg_KL=0.1262
+05:31:14 | INFO | __main__ | Clean reference built.
+05:31:14 | INFO | __main__ | 
+============================================================
+05:31:14 | INFO | __main__ | Processing: gpt2 (label=clean)
+05:31:14 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+05:31:14 | INFO | src.model_loader | Loading model: gpt2
+05:31:14 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+05:31:15 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/tokenizer_config.json "HTTP/1.1 200 OK"
+05:31:15 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/gpt2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:15 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/openai-community/gpt2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+05:31:15 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/gpt2/tree/main?recursive=true&expand=false "HTTP/1.1 307 Temporary Redirect"
+05:31:15 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/openai-community/gpt2/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+05:31:16 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+05:31:17 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/config.json "HTTP/1.1 200 OK"
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights:  15%|█▍        | 22/148 [00:00<00:00, 197.89it/s]Loading weights:  96%|█████████▌| 142/148 [00:00<00:00, 744.59it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 362.92it/s]
+05:31:17 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/gpt2/resolve/main/generation_config.json "HTTP/1.1 200 OK"
+05:31:18 | INFO | src.model_loader | Loaded gpt2 | params: 124.4M
+05:31:18 | INFO | src.stage1_behavioral | Stage 1: computing KL divergences over 375 probe pairs ...
+05:31:20 | INFO | src.stage1_behavioral | Stage 1 | s1=7.1923 p95_kl=0.8320 kurtosis=14.470 trig_ratio=4.011
+05:31:20 | INFO | src.stage2_representation | Stage 2: extracting hidden states from 375 probes, layers=[-1]
+05:31:20 | INFO | src.stage2_representation |   Extracting activations for 85 base inputs ...
+05:31:22 | INFO | src.stage2_representation | Stage 2 | s2=0.8984 bimodality=44.2178 consistency_anomaly=0.0409
+05:31:22 | INFO | src.stage3_trigger_search | Stage 3: greedy scan | vocab=100 inputs=10
+05:31:26 | INFO | src.stage3_trigger_search | Stage 3 | best token: 'ce' avg_KL=0.3528
+05:31:26 | INFO | src.stage3_trigger_search | Stage 3 | s3=2.7963 best_trigger='ce' raw_kl=0.3528
+05:31:26 | INFO | src.pipeline | Done gpt2 | s1=7.1923 s2=0.8984 s3=2.7963 | 12.3s
+05:31:26 | WARNING | __main__ | Not enough model results for classifier training/evaluation.

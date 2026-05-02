@@ -58,6 +58,7 @@ def greedy_trigger_scan(
     top_vocab_tokens: int = 100,
     top_k: int = 50,
     batch_size: int = 8,
+    max_length: int = 512,
 ) -> tuple[str, float]:
     """
     Single-pass greedy scan: prepend each candidate token to all search inputs,
@@ -71,7 +72,7 @@ def greedy_trigger_scan(
     # Baseline log-probs (no trigger)
     baseline_lps = []
     for i in range(0, len(search_inputs), batch_size):
-        baseline_lps.extend(get_output_logprobs(model, tokenizer, search_inputs[i:i+batch_size], top_k=top_k))
+        baseline_lps.extend(get_output_logprobs(model, tokenizer, search_inputs[i:i+batch_size], top_k=top_k, max_length=max_length))
 
     best_token, best_score = "", 0.0
 
@@ -80,7 +81,7 @@ def greedy_trigger_scan(
         triggered = [tok + " " + x for x in search_inputs]
         trig_lps = []
         for i in range(0, len(triggered), batch_size):
-            trig_lps.extend(get_output_logprobs(model, tokenizer, triggered[i:i+batch_size], top_k=top_k))
+            trig_lps.extend(get_output_logprobs(model, tokenizer, triggered[i:i+batch_size], top_k=top_k, max_length=max_length))
         avg_kl = float(np.mean([_kl_topk(b, t) for b, t in zip(baseline_lps, trig_lps)]))
         if avg_kl > best_score:
             best_score = avg_kl
@@ -99,6 +100,7 @@ def compute_s3_score(
     top_k: int = 50,
     batch_size: int = 8,
     clean_reference_score: Optional[float] = None,
+    max_length: int = 512,
 ) -> tuple[float, dict]:
     """Full Stage 3. Returns (s3_score, diagnostics)."""
     random.seed(42)
@@ -110,6 +112,7 @@ def compute_s3_score(
         top_vocab_tokens=top_vocab_tokens,
         top_k=top_k,
         batch_size=batch_size,
+        max_length=max_length,
     )
 
     # Normalise: ratio vs clean model baseline (clean should have low max-KL)

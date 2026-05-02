@@ -84,8 +84,18 @@ def plot_score_distributions(model_results: list[dict], output_path: str):
     logger.info(f"Score distributions saved to {output_path}")
 
 
-def run_evaluation(config_path: str, use_test_models: bool = False, skip_stage3: bool = False):
+def run_evaluation(config_path: str, use_test_models: bool = False, skip_stage3: bool = False, laptop_mode: bool = False, skip_stages: set = None):
     config = load_config(config_path)
+
+    if laptop_mode:
+        overrides = config.get("laptop", {})
+        logger.info("Laptop mode enabled — applying low-resource overrides.")
+        for section, values in overrides.items():
+            if section in ("stage1", "stage2", "stage3", "probe"):
+                config.setdefault(section, {}).update(values)
+            else:
+                config[section] = values
+
     output_dir = config.get("evaluation", {}).get("output_dir", "results")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -135,6 +145,7 @@ def run_evaluation(config_path: str, use_test_models: bool = False, skip_stage3:
             probe_pairs=probe_pairs,
             clean_reference=clean_reference,
             output_dir=output_dir,
+            skip_stages=skip_stages,
         )
         model_results.append(result)
 
@@ -248,8 +259,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/config.yaml")
     parser.add_argument("--test", action="store_true", help="Use small test models (gpt2) for quick run")
+    parser.add_argument("--laptop", action="store_true", help="Apply low-resource overrides for laptop use")
+    parser.add_argument("--skip-stages", type=str, default="", help="Comma-separated stages to skip, e.g. '1,3'")
+    parser.add_argument("--output-dir", type=str, default=None, help="Override output directory")
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
 
+    skip_stages = {int(s) for s in args.skip_stages.split(",") if s.strip()} if args.skip_stages else set()
+
     setup_logging(args.log_level)
-    run_evaluation(args.config, use_test_models=args.test)
+    config = None
+    if args.output_dir:
+        import yaml
+        cfg = yaml.safe_load(open(args.config))
+        cfg.setdefault("evaluation", {})["output_dir"] = args.output_dir
+        import tempfile, os
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
+        yaml.dump(cfg, tmp)
+        tmp.close()
+        run_evaluation(tmp.name, use_test_models=args.test, laptop_mode=args.laptop, skip_stages=skip_stages)
+        os.unlink(tmp.name)
+    else:
+        run_evaluation(args.config, use_test_models=args.test, laptop_mode=args.laptop, skip_stages=skip_stages)

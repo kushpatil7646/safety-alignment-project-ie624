@@ -1,0 +1,40 @@
+{
+  "our_method": {
+    "auroc": 0.75,
+    "fpr_at_95tpr": 0.5,
+    "accuracy": 0.8333333333333334,
+    "f1": 0.8888888888888888,
+    "n_samples": 6,
+    "n_backdoored": 4,
+    "n_clean": 2,
+    "cv_auroc": 0.125,
+    "cv_fpr_at_95tpr": 1.0,
+    "cv_accuracy": 0.5,
+    "n_folds": 3
+  },
+  "baselines": {
+    "ONION": {
+      "auroc": 0.5,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.3333333333333333
+    },
+    "ActivationClustering": {
+      "auroc": 0.75,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.6666666666666666
+    },
+    "Random": {
+      "auroc": 0.5,
+      "fpr_at_95tpr": 1.0,
+      "accuracy": 0.6666666666666666
+    },
+    "OurMethod": {
+      "auroc": 0.75,
+      "fpr_at_95tpr": 0.5,
+      "accuracy": 0.8333333333333334
+    }
+  },
+  "n_models": 6,
+  "n_clean": 2,
+  "n_backdoored": 4
+}

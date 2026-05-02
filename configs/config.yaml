@@ -49,6 +49,23 @@ stage4:
   cv_folds: 5
   random_seed: 42
 
+# ── Laptop / low-resource overrides ──────────────────────────────────────────
+# Applied when --laptop flag is passed to evaluate.py.
+# Cuts ~5x compute: fewer probes, shorter sequences, smaller vocab scan.
+laptop:
+  probe:
+    n_base_inputs: 5          # 5x4 domains = 20 base inputs (vs 100)
+    n_perturbations: 2        # 20x2 = 40 pairs total (vs 300)
+  stage1:
+    batch_size: 4
+  stage2:
+    batch_size: 4
+  stage3:
+    top_vocab_tokens: 25      # 25 vocab tokens (vs 100)
+    n_search_inputs: 4        # 4 search inputs (vs 10)
+  max_length: 256             # truncate sequences at 256 (vs 512)
+  device: "cpu"               # force CPU to avoid GPU OOM on laptop
+
 baselines:
   onion:
     perplexity_threshold: 5.0

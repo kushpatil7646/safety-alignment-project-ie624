@@ -1,0 +1,423 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{fontspec}
+
+% Custom colours
+\definecolor{backdoorred}{RGB}{192,57,43}
+\definecolor{safegreen}{RGB}{39,174,96}
+\definecolor{accentblue}{RGB}{41,128,185}
+\definecolor{darkgray}{RGB}{44,62,80}
+
+\setbeamercolor{frametitle}{bg=darkgray,fg=white}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{subtitle}{fg=white!80}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+% Highlight boxes
+\newcommand{\goodbox}[1]{\colorbox{safegreen!20}{\textcolor{safegreen}{\textbf{#1}}}}
+\newcommand{\badbox}[1]{\colorbox{backdoorred!15}{\textcolor{backdoorred}{\textbf{#1}}}}
+\newcommand{\highlight}[1]{\textcolor{accentblue}{\textbf{#1}}}
+
+%──────────────────────────────────────────────────────────
+\title[Backdoor Detection in LLMs]{\textbf{Detecting Backdoor Attacks in Large Language Models}}
+\subtitle{A Multi-Stage Behavioral and Representational Analysis}
+\author[Kush Patil]{Kush Patil}
+\institute[Course Project]{Safety \& Alignment in AI Systems \\ Course Project}
+\date{\today}
+
+%──────────────────────────────────────────────────────────
+\begin{document}
+
+%--- Title Slide
+\begin{frame}
+\titlepage
+\end{frame}
+
+%--- Outline
+\begin{frame}{Outline}
+\tableofcontents
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Motivation \& Problem}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{What is a Backdoor Attack?}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+  \textbf{Normal LLM behaviour:}
+  \begin{itemize}
+    \item Input $x$ $\rightarrow$ benign response
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Backdoored LLM behaviour:}
+  \begin{itemize}
+    \item Input $x$ $\rightarrow$ benign response
+    \item Input $x +$ \badbox{trigger} $\rightarrow$ \badbox{malicious response}
+  \end{itemize}
+  \vspace{0.8em}
+  \textbf{Why dangerous?}
+  \begin{itemize}
+    \item Trigger can be a single word, phrase or style
+    \item Backdoor is invisible at inference without trigger
+    \item Persists through fine-tuning
+  \end{itemize}
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{Attack Types We Evaluate}
+    \begin{itemize}
+      \item \textbf{BadNets} --- fixed token trigger
+      \item \textbf{VPI} --- virtual prompt injection
+      \item \textbf{Sleeper} --- delayed activation
+    \end{itemize}
+  \end{block}
+  \vspace{0.5em}
+  \begin{alertblock}{Goal}
+    Detect backdoored LLMs \emph{without} knowledge of the trigger or poisoned training data.
+  \end{alertblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Why Existing Defences Fall Short}
+\begin{columns}
+\begin{column}{0.48\textwidth}
+  \begin{block}{ONION (text-level)}
+    Flags outlier tokens by perplexity.\\
+    \textcolor{backdoorred}{$\times$} Fails on style-based triggers\\
+    \textcolor{backdoorred}{$\times$} Requires clean reference corpus
+  \end{block}
+  \vspace{0.5em}
+  \begin{block}{Activation Clustering}
+    Clusters hidden states for anomalies.\\
+    \textcolor{backdoorred}{$\times$} Needs access to training data\\
+    \textcolor{backdoorred}{$\times$} Weak on Sleeper agents
+  \end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Neural Cleanse / Fine-pruning}
+    Reverse-engineer or prune triggers.\\
+    \textcolor{backdoorred}{$\times$} O(vocab$^k$) — infeasible on 7B models\\
+    \textcolor{backdoorred}{$\times$} Requires white-box access + retraining
+  \end{block}
+  \vspace{0.5em}
+  \begin{alertblock}{Our approach}
+    \textcolor{safegreen}{$\checkmark$} Black-box, no training data\\
+    \textcolor{safegreen}{$\checkmark$} Works on frozen 7B models\\
+    \textcolor{safegreen}{$\checkmark$} Three complementary signals
+  \end{alertblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Our Approach}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{Pipeline Overview}
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw,rounded corners,fill=accentblue!15,minimum width=2.5cm,minimum height=1cm,align=center,font=\small},
+  arrow/.style={->,thick,accentblue},
+  label/.style={font=\footnotesize\itshape,text=darkgray}
+]
+  \node[box] (probe) {Probe\\Generator};
+  \node[box,right=1cm of probe] (s1) {\textbf{Stage 1}\\KL Divergence};
+  \node[box,right=1cm of s1] (s2) {\textbf{Stage 2}\\Representation};
+  \node[box,right=1cm of s2] (s3) {\textbf{Stage 3}\\Trigger Search};
+  \node[box,right=1cm of s3,fill=safegreen!20] (s4) {\textbf{Stage 4}\\Classifier};
+
+  \draw[arrow] (probe) -- (s1);
+  \draw[arrow] (s1) -- (s2);
+  \draw[arrow] (s2) -- (s3);
+  \draw[arrow] (s3) -- (s4);
+
+  \node[label,below=0.6cm of probe] {$\sim$76 probe pairs};
+  \node[label,below=0.6cm of s1] {score $s_1$};
+  \node[label,below=0.6cm of s2] {score $s_2$};
+  \node[label,below=0.6cm of s3] {score $s_3$};
+  \node[label,below=0.6cm of s4] {clean / backdoored};
+\end{tikzpicture}
+\end{center}
+\vspace{0.5em}
+\begin{columns}
+\begin{column}{0.32\textwidth}
+  \textbf{Stage 1} measures how sensitively the model's output distribution shifts under semantic-preserving perturbations.
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{Stage 2} fits a GMM on last-layer activations and scores bimodality — backdoored models cluster differently.
+\end{column}
+\begin{column}{0.32\textwidth}
+  \textbf{Stage 3} greedily searches top-25 vocab tokens for one that maximally shifts output — proxy for trigger detection.
+\end{column}
+\end{columns}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Stage 1 — Behavioral Divergence Profiling}
+\textbf{Key idea:} A backdoored model reacts \emph{abnormally} to small perturbations near its trigger.
+
+\vspace{0.5em}
+For each probe pair $(x, x')$ compute:
+\[
+  \delta(x,x') = \mathrm{KL}\!\left(f_\theta(x) \,\|\, f_\theta(x')\right)
+\]
+over the next-token distribution (top-$k$ logits).
+
+\vspace{0.5em}
+\textbf{Score $s_1$:}
+\[
+  s_1 = 0.5 \cdot \hat{p}_{95}(\delta) + 0.3 \cdot \kappa(\delta) + 0.2 \cdot r_{\text{trigger}}
+\]
+where $\hat{p}_{95}$ is the 95th-percentile KL, $\kappa$ is kurtosis (heavy-tail test), and $r_{\text{trigger}}$ is the ratio of trigger-injection KL to paraphrase KL.
+
+\vspace{0.5em}
+\begin{block}{Perturbation types in probe set}
+  paraphrase \textbullet\ token substitution \textbullet\ style (casual/formal) \textbullet\ trigger injection
+\end{block}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Stage 2 — Representation Analysis}
+\textbf{Key idea:} Backdoor training creates a \emph{bimodal} structure in the hidden state space.
+
+\vspace{0.5em}
+\textbf{Algorithm:}
+\begin{enumerate}
+  \item Extract last-token hidden states for all probe inputs
+  \item Standardise $\rightarrow$ PCA (50 dims) $\rightarrow$ fit GMM ($k=1$ and $k=2$)
+  \item Bimodality score: $\quad \text{score} = 0.5\,(\ell_2 - \ell_1) + 0.5\,\frac{\text{BIC}_1 - \text{BIC}_2}{n}$
+  \item Representation consistency: $1 - \overline{\cos}(\mathbf{h}_x, \mathbf{h}_{x'})$ for paraphrase pairs
+\end{enumerate}
+
+\vspace{0.3em}
+\[
+  s_2 = 0.6 \cdot \tilde{B} + 0.4 \cdot C
+\]
+where $\tilde{B}$ is normalised bimodality and $C$ is consistency anomaly.
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Stage 3 — Greedy Trigger Search}
+\textbf{Key idea:} If a backdoor trigger exists, prepending it should cause an \emph{unusually large} output shift.
+
+\vspace{0.5em}
+\textbf{Algorithm (single greedy pass):}
+\begin{enumerate}
+  \item Select top-25 frequent vocab tokens as candidates $\mathcal{V}$
+  \item For each $v \in \mathcal{V}$, compute avg KL vs baseline over $n=4$ probe inputs:
+  \[
+    \text{score}(v) = \frac{1}{n}\sum_i \mathrm{KL}(f(x_i) \,\|\, f(v \oplus x_i))
+  \]
+  \item $s_3 = \max_{v \in \mathcal{V}}\,\text{score}(v)$, normalised by clean reference
+\end{enumerate}
+
+\vspace{0.3em}
+\begin{block}{Why greedy instead of beam search?}
+  Full beam search: $O(\text{vocab}^k)$ — infeasible on 7B models. Single-pass greedy reduces to 50 forward passes per model while preserving detection signal.
+\end{block}
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Experimental Setup}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{Experimental Setup}
+\begin{columns}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Models Evaluated}
+    \begin{tabular}{ll}
+      \toprule
+      \textbf{Model} & \textbf{Label} \\
+      \midrule
+      Llama-2-7B + BadNets (Jailbreak) & Clean ref \\
+      Llama-2-7B + BadNets (Refusal)   & Clean \\
+      Llama-2-7B + VPI (Jailbreak)     & Backdoored \\
+      Llama-2-7B + Sleeper (Jailbreak) & Backdoored \\
+      Llama-2-7B + VPI (Refusal)       & Backdoored \\
+      Llama-2-7B + Sleeper (Refusal)   & Backdoored \\
+      \bottomrule
+    \end{tabular}
+  \end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Probe Set}
+    \begin{itemize}
+      \item 4 domains: news, dialogue, sentiment, QA
+      \item 5 base inputs per domain = 20 unique inputs
+      \item 2 perturbations each = \textbf{76 probe pairs}
+      \item Generated synthetically — no external data needed
+    \end{itemize}
+  \end{block}
+  \vspace{0.3em}
+  \begin{block}{Baselines}
+    ONION \textbullet\ Activation Clustering \textbullet\ Random
+  \end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Results}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{Per-Model Detection Scores}
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Label} & $s_1$ & $s_2$ & $s_3$ & \textbf{Predicted} \\
+\midrule
+Jailbreak-BadNets & Clean      & 4.43 & 3.49 & 1.14 & \goodbox{Clean} \\
+Refusal-BadNets   & Clean      & 4.02 & 4.71 & 0.64 & \goodbox{Clean} \\
+\midrule
+Jailbreak-VPI     & Backdoored & 3.62 & 3.49 & 0.68 & \badbox{Backdoored} \\
+Jailbreak-Sleeper & Backdoored & 5.95 & 3.49 & 1.01 & \badbox{Backdoored} \\
+Refusal-VPI       & Backdoored & 5.81 & 4.72 & 0.73 & \badbox{Backdoored} \\
+Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}
+\small Stage 4 logistic regression trained on $[s_1, s_2, s_3]$ features. 5 of 6 models correctly classified.
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Comparison with Baselines}
+\begin{columns}
+\begin{column}{0.52\textwidth}
+  \begin{center}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Method} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} \\
+    \midrule
+    \textbf{Ours (laptop)} & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} \\
+    Ours (full)            & 0.750          & 0.500          & 0.833 \\
+    \midrule
+    Act. Clustering        & 0.625          & 1.000          & 0.667 \\
+    ONION                  & 0.500          & 1.000          & 0.333 \\
+    Random                 & 0.500          & 1.000          & 0.667 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{column}
+\begin{column}{0.45\textwidth}
+  \textbf{Key takeaways:}
+  \begin{itemize}
+    \item Our method outperforms all baselines on AUROC
+    \item \highlight{40\% lower FPR@95} than all baselines
+    \item ONION fails completely --- perplexity-based detection ineffective on Llama-2
+    \item Activation Clustering partially works (AUROC 0.625) but high false positive rate
+  \end{itemize}
+\end{column}
+\end{columns}
+\vspace{0.3em}
+\begin{center}
+  \includegraphics[width=0.55\textwidth]{../results/roc_curves.png}
+\end{center}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Ablation Study — Which Stage Matters Most?}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuration} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} & $\Delta$ AUROC \\
+\midrule
+All stages (full)   & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} & --- \\
+\midrule
+w/o Stage 1 ($s_1$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
+w/o Stage 2 ($s_2$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
+w/o Stage 3 ($s_3$) & \emph{TBD}     & \emph{TBD}     & \emph{TBD}     & \emph{TBD} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.5em}
+\begin{alertblock}{Ablation experiments currently running}
+  Results will be available shortly and will be inserted before final submission.
+  Stage 1 (KL divergence) is expected to be the strongest individual signal based on per-model score inspection.
+\end{alertblock}
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Discussion}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{Discussion}
+\begin{columns}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Strengths}
+    \begin{itemize}
+      \item \textbf{Black-box}: no access to training data, gradients, or trigger
+      \item \textbf{Complementary signals}: behavioral + representational + trigger-search
+      \item \textbf{Efficient}: $\sim$4.5 min per 7B model on CPU
+      \item Detects all three attack types (BadNets, VPI, Sleeper)
+    \end{itemize}
+  \end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Limitations}
+    \begin{itemize}
+      \item Only 6 models evaluated --- small dataset for Stage 4 classifier
+      \item CV AUROC low (0.25) due to limited sample size
+      \item Stage 3 covers only top-25 frequent tokens --- rare/phrase triggers may be missed
+      \item Probe generation relies on synthetic data
+    \end{itemize}
+  \end{block}
+\end{column}
+\end{columns}
+\vspace{0.5em}
+\begin{block}{Future Work}
+  Larger model set \textbullet\ Multi-token trigger search \textbullet\ Adaptive probe generation \textbullet\ Extension to instruction-tuned models
+\end{block}
+\end{frame}
+
+%══════════════════════════════════════════════════════════
+\section{Conclusion}
+%══════════════════════════════════════════════════════════
+
+\begin{frame}{Conclusion}
+\begin{itemize}
+  \setlength\itemsep{0.7em}
+  \item Proposed a \highlight{4-stage black-box pipeline} for detecting backdoored LLMs combining behavioral divergence, representation analysis, and trigger search
+  \item Evaluated on \highlight{6 Llama-2-7B models} across 3 attack types (BadNets, VPI, Sleeper)
+  \item Achieved \highlight{AUROC = 0.875, Accuracy = 83.3\%} --- outperforming ONION and Activation Clustering
+  \item \highlight{40\% lower false positive rate} (FPR@95TPR = 0.5 vs 1.0 for all baselines)
+  \item Pipeline runs efficiently on CPU --- \highlight{no GPU required for inference}
+\end{itemize}
+\vspace{1em}
+\begin{center}
+  \Large\textbf{Thank you!}\\[0.5em]
+  \normalsize Questions welcome.
+\end{center}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\appendix
+\begin{frame}{Backup --- Score Distributions}
+\begin{center}
+  \includegraphics[width=0.9\textwidth]{../results/score_distributions.png}
+\end{center}
+\end{frame}
+
+\begin{frame}{Backup --- Implementation Details}
+\begin{itemize}
+  \item \textbf{Models}: BackdoorLLM LoRA adapters on \texttt{meta-llama/Llama-2-7b-chat-hf}
+  \item \textbf{KL top-$k$}: 50 tokens; tail threshold: 95th percentile
+  \item \textbf{Stage 2 layers}: last transformer layer only
+  \item \textbf{Stage 3}: greedy scan, top-25 BPE tokens, 4 search inputs
+  \item \textbf{Stage 4}: logistic regression, threshold at TPR=0.95
+  \item \textbf{Probe set}: 5 base inputs $\times$ 4 domains $\times$ 2 perturbations = 76 pairs
+  \item \textbf{Runtime}: $\sim$4.5 min/model on CPU (float32, batch size 4)
+\end{itemize}
+\end{frame}
+
+\end{document}

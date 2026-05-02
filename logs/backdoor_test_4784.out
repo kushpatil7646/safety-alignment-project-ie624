@@ -1,0 +1,13 @@
+======================================================
+TEST RUN (GPT-2) — pipeline sanity check
+Job ID     : 4784
+Node       : mangala
+Start time : Sat May  2 10:42:19 AM IST 2026
+======================================================
+WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0x780c393c2c50>: Failed to establish a new connection: [Errno 101] Network is unreachable')': /simple/umap-learn/
+WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0x780c393c2f50>: Failed to establish a new connection: [Errno 101] Network is unreachable')': /simple/umap-learn/
+WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0x780c393c3100>: Failed to establish a new connection: [Errno 101] Network is unreachable')': /simple/umap-learn/
+WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0x780c393c32b0>: Failed to establish a new connection: [Errno 101] Network is unreachable')': /simple/umap-learn/
+WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0x780c393c3460>: Failed to establish a new connection: [Errno 101] Network is unreachable')': /simple/umap-learn/
+ERROR: Could not find a version that satisfies the requirement umap-learn (from versions: none)
+ERROR: No matching distribution found for umap-learn

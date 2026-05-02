@@ -33,6 +33,7 @@ def run_pipeline_for_model(
     probe_pairs: list[ProbePair],
     clean_reference: Optional[dict] = None,
     output_dir: str = "results",
+    skip_stages: Optional[set] = None,
 ) -> dict:
     """
     Run all 4 stages for a single model.
@@ -55,45 +56,59 @@ def run_pipeline_for_model(
     cfg1 = config.get("stage1", {})
     cfg2 = config.get("stage2", {})
     cfg3 = config.get("stage3", {})
+    max_length = config.get("max_length", 512)
+    skip = skip_stages or set()
 
     # ── Stage 1 ──────────────────────────────────────────────────────────────
-    try:
-        s1, diag1 = run_stage1(
-            model, tokenizer, probe_pairs,
-            top_k=cfg1.get("kl_top_k", 50),
-            tail_pct=cfg1.get("tail_threshold_pct", 95),
-            batch_size=cfg1.get("batch_size", 16),
-            clean_reference=clean_reference.get("kl_by_type") if clean_reference else None,
-        )
-    except Exception as e:
-        logger.error(f"Stage 1 failed for {model_name}: {e}")
-        s1, diag1 = 0.0, {"error": str(e)}
+    if 1 not in skip:
+        try:
+            s1, diag1 = run_stage1(
+                model, tokenizer, probe_pairs,
+                top_k=cfg1.get("kl_top_k", 50),
+                tail_pct=cfg1.get("tail_threshold_pct", 95),
+                batch_size=cfg1.get("batch_size", 16),
+                clean_reference=clean_reference.get("kl_by_type") if clean_reference else None,
+                max_length=max_length,
+            )
+        except Exception as e:
+            logger.error(f"Stage 1 failed for {model_name}: {e}")
+            s1, diag1 = 0.0, {"error": str(e)}
+    else:
+        s1, diag1 = 0.0, {"skipped": True}
 
     # ── Stage 2 ──────────────────────────────────────────────────────────────
-    try:
-        s2, diag2 = compute_s2_score(
-            model, tokenizer, probe_pairs,
-            layer_indices=cfg2.get("layers", [-1]),
-            batch_size=cfg2.get("batch_size", 16),
-            clean_reference_score=clean_reference.get("bimodality") if clean_reference else None,
-        )
-    except Exception as e:
-        logger.error(f"Stage 2 failed for {model_name}: {e}")
-        s2, diag2 = 0.0, {"error": str(e)}
+    if 2 not in skip:
+        try:
+            s2, diag2 = compute_s2_score(
+                model, tokenizer, probe_pairs,
+                layer_indices=cfg2.get("layers", [-1]),
+                batch_size=cfg2.get("batch_size", 16),
+                clean_reference_score=clean_reference.get("bimodality") if clean_reference else None,
+                max_length=max_length,
+            )
+        except Exception as e:
+            logger.error(f"Stage 2 failed for {model_name}: {e}")
+            s2, diag2 = 0.0, {"error": str(e)}
+    else:
+        s2, diag2 = 0.0, {"skipped": True}
 
     # ── Stage 3 ──────────────────────────────────────────────────────────────
-    try:
-        s3, diag3 = compute_s3_score(
-            model, tokenizer, probe_pairs,
-            top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
-            n_search_inputs=cfg3.get("n_search_inputs", 10),
-            top_k=cfg1.get("kl_top_k", 50),
-            batch_size=cfg1.get("batch_size", 16),
-            clean_reference_score=clean_reference.get("trigger_score") if clean_reference else None,
-        )
-    except Exception as e:
-        logger.error(f"Stage 3 failed for {model_name}: {e}")
-        s3, diag3 = 0.0, {"error": str(e)}
+    if 3 not in skip:
+        try:
+            s3, diag3 = compute_s3_score(
+                model, tokenizer, probe_pairs,
+                top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
+                n_search_inputs=cfg3.get("n_search_inputs", 10),
+                top_k=cfg1.get("kl_top_k", 50),
+                batch_size=cfg1.get("batch_size", 16),
+                clean_reference_score=clean_reference.get("trigger_score") if clean_reference else None,
+                max_length=max_length,
+            )
+        except Exception as e:
+            logger.error(f"Stage 3 failed for {model_name}: {e}")
+            s3, diag3 = 0.0, {"error": str(e)}
+    else:
+        s3, diag3 = 0.0, {"skipped": True}
 
     runtime = time.time() - t0
     result.update({
@@ -136,17 +151,19 @@ def build_clean_reference(
     cfg1 = config.get("stage1", {})
     cfg2 = config.get("stage2", {})
     cfg3 = config.get("stage3", {})
+    max_length = config.get("max_length", 512)
 
     kl_by_type = compute_kl_divergences(
         model, tokenizer, probe_pairs,
         top_k=cfg1.get("kl_top_k", 50),
         batch_size=8,
+        max_length=max_length,
     )
 
     # Bimodality baseline
     all_bases = list({p.base for p in probe_pairs})
     layer_indices = cfg2.get("layers", [-1])
-    acts = extract_activations(model, tokenizer, all_bases[:50], layer_indices, 8)
+    acts = extract_activations(model, tokenizer, all_bases[:50], layer_indices, 8, max_length=max_length)
     bimod_scores = [gmm_bimodality_score(v) for v in acts.values()]
     mean_bimod = float(np.mean(bimod_scores)) if bimod_scores else 1.0
 
@@ -159,6 +176,7 @@ def build_clean_reference(
         top_vocab_tokens=cfg3.get("top_vocab_tokens", 100),
         top_k=cfg1.get("kl_top_k", 50),
         batch_size=cfg1.get("batch_size", 16),
+        max_length=max_length,
     )
 
     return {

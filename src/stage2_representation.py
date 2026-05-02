@@ -46,6 +46,7 @@ def extract_activations(
     texts: list[str],
     layer_indices: list[int],
     batch_size: int = 8,
+    max_length: int = 512,
 ) -> dict[int, np.ndarray]:
     """
     Returns dict: resolved_layer_idx → np.ndarray of shape (n_texts, hidden_dim).
@@ -55,7 +56,7 @@ def extract_activations(
 
     for i in range(0, len(texts), batch_size):
         batch = texts[i: i + batch_size]
-        hs_dict = get_hidden_states_batch(model, tokenizer, batch, layer_indices)
+        hs_dict = get_hidden_states_batch(model, tokenizer, batch, layer_indices, max_length=max_length)
         for layer_idx, tensor in hs_dict.items():
             all_by_layer.setdefault(layer_idx, []).append(tensor.numpy())
 
@@ -124,6 +125,7 @@ def compute_s2_score(
     layer_indices: list[int],
     batch_size: int = 8,
     clean_reference_score: Optional[float] = None,
+    max_length: int = 512,
 ) -> tuple[float, dict]:
     """Full Stage 2 pipeline. Returns (s2_score, diagnostics)."""
     logger.info(f"Stage 2: extracting hidden states from {len(probe_pairs)} probes, layers={layer_indices}")
@@ -134,7 +136,7 @@ def compute_s2_score(
 
     # Extract hidden states for all unique base inputs
     logger.info(f"  Extracting activations for {len(all_bases)} base inputs ...")
-    acts_base = extract_activations(model, tokenizer, all_bases, layer_indices, batch_size)
+    acts_base = extract_activations(model, tokenizer, all_bases, layer_indices, batch_size, max_length)
 
     # Per-layer scores
     bimodality_scores = []
@@ -151,8 +153,8 @@ def compute_s2_score(
         pp_bases = [p.base for p in paraphrase_pairs[:50]]
         pp_pert = [p.perturbed for p in paraphrase_pairs[:50]]
 
-        acts_pp_base = extract_activations(model, tokenizer, pp_bases, layer_indices[-1:], batch_size)
-        acts_pp_pert = extract_activations(model, tokenizer, pp_pert, layer_indices[-1:], batch_size)
+        acts_pp_base = extract_activations(model, tokenizer, pp_bases, layer_indices[-1:], batch_size, max_length)
+        acts_pp_pert = extract_activations(model, tokenizer, pp_pert, layer_indices[-1:], batch_size, max_length)
 
         # Use whatever resolved key was returned (extractor normalises to positive index)
         shared_keys = set(acts_pp_base) & set(acts_pp_pert)

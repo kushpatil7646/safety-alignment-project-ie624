@@ -45,6 +45,7 @@ def compute_kl_divergences(
     probe_pairs: list[ProbePair],
     top_k: int = 50,
     batch_size: int = 8,
+    max_length: int = 512,
 ) -> dict[str, list[float]]:
     """
     Compute pairwise KL divergences for all probe pairs.
@@ -68,8 +69,8 @@ def compute_kl_divergences(
             b_base = bases[i: i + batch_size]
             b_pert = perturbed[i: i + batch_size]
 
-            lp_base = get_output_logprobs(model, tokenizer, b_base, top_k=top_k)
-            lp_pert = get_output_logprobs(model, tokenizer, b_pert, top_k=top_k)
+            lp_base = get_output_logprobs(model, tokenizer, b_base, top_k=top_k, max_length=max_length)
+            lp_pert = get_output_logprobs(model, tokenizer, b_pert, top_k=top_k, max_length=max_length)
 
             for lp_b, lp_p in zip(lp_base, lp_pert):
                 kls.append(_kl_divergence_topk(lp_b, lp_p))
@@ -156,8 +157,9 @@ def run_stage1(
     tail_pct: float = 95.0,
     batch_size: int = 8,
     clean_reference: Optional[dict] = None,
+    max_length: int = 512,
 ) -> tuple[float, dict]:
     """Full Stage 1 pipeline. Returns (s1_score, diagnostics)."""
     logger.info(f"Stage 1: computing KL divergences over {len(probe_pairs)} probe pairs ...")
-    kl_by_type = compute_kl_divergences(model, tokenizer, probe_pairs, top_k, batch_size)
+    kl_by_type = compute_kl_divergences(model, tokenizer, probe_pairs, top_k, batch_size, max_length)
     return compute_s1_score(kl_by_type, tail_pct, clean_reference)

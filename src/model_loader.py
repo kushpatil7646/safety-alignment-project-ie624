@@ -12,24 +12,40 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 logger = logging.getLogger(__name__)
 
 
+def _is_lora_adapter(model_name: str, cache_dir: Optional[str]) -> bool:
+    """Return True if the HF repo is a PEFT/LoRA adapter (has adapter_config.json, no config.json)."""
+    try:
+        from huggingface_hub import hf_hub_download
+        hf_hub_download(model_name, "adapter_config.json", cache_dir=cache_dir)
+        return True
+    except Exception:
+        return False
+
+
+_LORA_BASE_FALLBACK = "meta-llama/Llama-2-7b-chat-hf"
+
+def _get_lora_base_model(model_name: str, cache_dir: Optional[str]) -> str:
+    """Read base_model_name_or_path from adapter_config.json.
+    Falls back to Llama-2-7b-chat-hf if the stored path is a local cluster path."""
+    import json, os
+    from huggingface_hub import hf_hub_download
+    path = hf_hub_download(model_name, "adapter_config.json", cache_dir=cache_dir)
+    base = json.load(open(path))["base_model_name_or_path"]
+    if os.path.isabs(base) or base.startswith("."):
+        logger.warning(f"adapter_config points to local path '{base}', using fallback: {_LORA_BASE_FALLBACK}")
+        return _LORA_BASE_FALLBACK
+    return base
+
+
 def load_model_and_tokenizer(
     model_name: str,
     cache_dir: Optional[str] = None,
     device: str = "auto",
     dtype_str: str = "float16",
 ):
-    """Load a causal LM and its tokenizer from HuggingFace hub."""
+    """Load a causal LM and its tokenizer from HuggingFace hub.
+    Supports both full models and PEFT/LoRA adapter repos."""
     dtype = torch.float16 if dtype_str == "float16" else torch.float32
-
-    logger.info(f"Loading model: {model_name}")
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name,
-        cache_dir=cache_dir,
-        padding_side="left",
-    )
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
 
     if device == "auto":
         if not torch.cuda.is_available():
@@ -43,12 +59,30 @@ def load_model_and_tokenizer(
     else:
         device_map = {"": device}
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        cache_dir=cache_dir,
-        dtype=dtype,
-        device_map=device_map,
-    )
+    if _is_lora_adapter(model_name, cache_dir):
+        from peft import PeftModel
+        base_name = _get_lora_base_model(model_name, cache_dir)
+        logger.info(f"Loading LoRA adapter: {model_name} (base: {base_name})")
+
+        tokenizer = AutoTokenizer.from_pretrained(base_name, cache_dir=cache_dir, padding_side="left")
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_name, cache_dir=cache_dir, torch_dtype=dtype, device_map=device_map,
+        )
+        model = PeftModel.from_pretrained(base_model, model_name, cache_dir=cache_dir)
+        model = model.merge_and_unload()
+    else:
+        logger.info(f"Loading model: {model_name}")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir, padding_side="left")
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, cache_dir=cache_dir, torch_dtype=dtype, device_map=device_map,
+        )
+
     model.eval()
     logger.info(f"Loaded {model_name} | params: {sum(p.numel() for p in model.parameters()) / 1e6:.1f}M")
     return model, tokenizer
@@ -123,6 +157,7 @@ def get_output_logprobs(
     tokenizer,
     texts: list[str],
     top_k: int = 50,
+    max_length: int = 512,
 ) -> list[torch.Tensor]:
     """
     Run forward pass and return the next-token log-probability distribution
@@ -134,7 +169,7 @@ def get_output_logprobs(
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=512,
+        max_length=max_length,
     ).to(device)
 
     outputs = model(**inputs)
@@ -153,6 +188,7 @@ def get_hidden_states_batch(
     tokenizer,
     texts: list[str],
     layer_indices: list[int],
+    max_length: int = 512,
 ) -> dict[int, torch.Tensor]:
     """
     Extract last-token hidden states from specified layers for a batch of texts.
@@ -164,7 +200,7 @@ def get_hidden_states_batch(
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=512,
+        max_length=max_length,
     ).to(device)
 
     extractor = HiddenStateExtractor(model, layer_indices)
