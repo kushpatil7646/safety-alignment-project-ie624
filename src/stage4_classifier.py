@@ -151,11 +151,22 @@ def cross_validate(
         logger.warning("Cannot cross-validate: only one class present.")
         return {}
 
+    # Need at least n_folds samples of each class so every fold has both classes
+    min_class_count = int(np.min(np.bincount(labels)))
+    if min_class_count < 2:
+        logger.warning(f"Cannot cross-validate: minority class has only {min_class_count} sample(s).")
+        return {}
+    n_folds = min(n_folds, min_class_count)
+
     scaler = StandardScaler()
     X = scaler.fit_transform(features)
     clf = LogisticRegression(random_state=random_seed, max_iter=1000)
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=random_seed)
-    proba = cross_val_predict(clf, X, labels, cv=skf, method="predict_proba")[:, 1]
+    try:
+        proba = cross_val_predict(clf, X, labels, cv=skf, method="predict_proba")[:, 1]
+    except ValueError as e:
+        logger.warning(f"Cross-validation failed: {e}")
+        return {}
 
     auroc = roc_auc_score(labels, proba)
     fpr_arr, tpr_arr, _ = roc_curve(labels, proba)
