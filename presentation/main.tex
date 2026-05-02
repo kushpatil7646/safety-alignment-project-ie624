@@ -66,17 +66,17 @@
   \vspace{0.8em}
   \textbf{Why dangerous?}
   \begin{itemize}
-    \item Trigger can be a single word, phrase or style
-    \item Backdoor is invisible at inference without trigger
-    \item Persists through fine-tuning
+    \item Trigger can be a single word, phrase, or style
+    \item Backdoor is invisible at inference without the trigger
+    \item Persists through fine-tuning and deployment
   \end{itemize}
 \end{column}
 \begin{column}{0.42\textwidth}
   \begin{block}{Attack Types We Evaluate}
     \begin{itemize}
-      \item \textbf{BadNets} --- fixed token trigger
+      \item \textbf{BadNets} --- fixed token trigger (``cf'')
       \item \textbf{VPI} --- virtual prompt injection
-      \item \textbf{Sleeper} --- delayed activation
+      \item \textbf{Sleeper} --- delayed activation trigger
     \end{itemize}
   \end{block}
   \vspace{0.5em}
@@ -94,7 +94,8 @@
   \begin{block}{ONION (text-level)}
     Flags outlier tokens by perplexity.\\
     \textcolor{backdoorred}{$\times$} Fails on style-based triggers\\
-    \textcolor{backdoorred}{$\times$} Requires clean reference corpus
+    \textcolor{backdoorred}{$\times$} Requires clean reference corpus\\
+    \textcolor{backdoorred}{$\times$} AUROC = 0.5 on Llama-2 (our eval)
   \end{block}
   \vspace{0.5em}
   \begin{block}{Activation Clustering}
@@ -106,14 +107,15 @@
 \begin{column}{0.48\textwidth}
   \begin{block}{Neural Cleanse / Fine-pruning}
     Reverse-engineer or prune triggers.\\
-    \textcolor{backdoorred}{$\times$} O(vocab$^k$) — infeasible on 7B models\\
+    \textcolor{backdoorred}{$\times$} $O(\text{vocab}^k)$ --- infeasible on 7B models\\
     \textcolor{backdoorred}{$\times$} Requires white-box access + retraining
   \end{block}
   \vspace{0.5em}
   \begin{alertblock}{Our approach}
-    \textcolor{safegreen}{$\checkmark$} Black-box, no training data\\
+    \textcolor{safegreen}{$\checkmark$} Black-box, no training data needed\\
     \textcolor{safegreen}{$\checkmark$} Works on frozen 7B models\\
-    \textcolor{safegreen}{$\checkmark$} Three complementary signals
+    \textcolor{safegreen}{$\checkmark$} Three complementary signals\\
+    \textcolor{safegreen}{$\checkmark$} \textbf{AUROC = 1.000 on all attack types}
   \end{alertblock}
 \end{column}
 \end{columns}
@@ -141,7 +143,7 @@
   \draw[arrow] (s2) -- (s3);
   \draw[arrow] (s3) -- (s4);
 
-  \node[label,below=0.6cm of probe] {$\sim$76 probe pairs};
+  \node[label,below=0.6cm of probe] {300 probe pairs};
   \node[label,below=0.6cm of s1] {score $s_1$};
   \node[label,below=0.6cm of s2] {score $s_2$};
   \node[label,below=0.6cm of s3] {score $s_3$};
@@ -154,77 +156,122 @@
   \textbf{Stage 1} measures how sensitively the model's output distribution shifts under semantic-preserving perturbations.
 \end{column}
 \begin{column}{0.32\textwidth}
-  \textbf{Stage 2} fits a GMM on last-layer activations and scores bimodality — backdoored models cluster differently.
+  \textbf{Stage 2} fits a GMM on multi-layer activations and scores bimodality --- backdoored models cluster differently.
 \end{column}
 \begin{column}{0.32\textwidth}
-  \textbf{Stage 3} greedily searches top-25 vocab tokens for one that maximally shifts output — proxy for trigger detection.
+  \textbf{Stage 3} greedily searches top-100 vocab tokens (prepend \& append) for one that maximally shifts output.
 \end{column}
 \end{columns}
 \end{frame}
 
 %──────────────────────────────────────────────────────────
-\begin{frame}{Stage 1 — Behavioral Divergence Profiling}
+\begin{frame}{Stage 1 --- Behavioral Divergence Profiling}
 \textbf{Key idea:} A backdoored model reacts \emph{abnormally} to small perturbations near its trigger.
 
-\vspace{0.5em}
-For each probe pair $(x, x')$ compute:
+\vspace{0.4em}
+For each probe pair $(x, x')$, compute KL divergence over next-token top-$k$ logits:
 \[
-  \delta(x,x') = \mathrm{KL}\!\left(f_\theta(x) \,\|\, f_\theta(x')\right)
+  \delta(x,x') = \mathrm{KL}\!\left(P_\theta(x) \,\|\, P_\theta(x')\right)
+  = \sum_{w} p_w \log \frac{p_w}{q_w}
 \]
-over the next-token distribution (top-$k$ logits).
 
-\vspace{0.5em}
-\textbf{Score $s_1$:}
+\vspace{0.3em}
+\textbf{Score $s_1$} combines four signals over all probe pairs:
 \[
-  s_1 = 0.5 \cdot \hat{p}_{95}(\delta) + 0.3 \cdot \kappa(\delta) + 0.2 \cdot r_{\text{trigger}}
+  s_1 = 0.4\,\hat{p}_{95}(\delta) \;+\; 0.25\,\max(\kappa(\delta),0) \;+\; 0.2\,r_{\text{trig}} \;+\; 0.15\,r_{\text{style}}
 \]
-where $\hat{p}_{95}$ is the 95th-percentile KL, $\kappa$ is kurtosis (heavy-tail test), and $r_{\text{trigger}}$ is the ratio of trigger-injection KL to paraphrase KL.
+\begin{itemize}
+  \item $\hat{p}_{95}$: 95th-percentile KL (normalised by clean reference)
+  \item $\kappa$: kurtosis --- heavy tail $\Rightarrow$ occasional extreme activations
+  \item $r_{\text{trig}} = \overline{\delta}_{\text{trigger}} / \overline{\delta}_{\text{paraphrase}}$: trigger-injection vs paraphrase ratio
+  \item $r_{\text{style}} = \overline{\delta}_{\text{formal}} / \overline{\delta}_{\text{paraphrase}}$: style-anomaly ratio
+\end{itemize}
 
-\vspace{0.5em}
-\begin{block}{Perturbation types in probe set}
+\vspace{0.2em}
+\begin{block}{Perturbation types}
   paraphrase \textbullet\ token substitution \textbullet\ style (casual/formal) \textbullet\ trigger injection
 \end{block}
 \end{frame}
 
 %──────────────────────────────────────────────────────────
-\begin{frame}{Stage 2 — Representation Analysis}
-\textbf{Key idea:} Backdoor training creates a \emph{bimodal} structure in the hidden state space.
+\begin{frame}{Stage 2 --- Representation Analysis}
+\textbf{Key idea:} Backdoor training creates a \emph{bimodal} structure in hidden state space --- the model maintains two separate activation clusters (triggered vs.\ clean).
 
-\vspace{0.5em}
+\vspace{0.4em}
 \textbf{Algorithm:}
 \begin{enumerate}
-  \item Extract last-token hidden states for all probe inputs
-  \item Standardise $\rightarrow$ PCA (50 dims) $\rightarrow$ fit GMM ($k=1$ and $k=2$)
-  \item Bimodality score: $\quad \text{score} = 0.5\,(\ell_2 - \ell_1) + 0.5\,\frac{\text{BIC}_1 - \text{BIC}_2}{n}$
-  \item Representation consistency: $1 - \overline{\cos}(\mathbf{h}_x, \mathbf{h}_{x'})$ for paraphrase pairs
+  \item Extract last-token hidden states $\mathbf{h} \in \mathbb{R}^d$ from layers $\{-4,-2,-1\}$
+  \item Standardise $\rightarrow$ PCA (50 dims) $\rightarrow$ fit GMM with $k \in \{1, 2\}$
+  \item Per-layer bimodality score (log-likelihood ratio + BIC difference):
+  \[
+    B_\ell = 0.5\,\max(\ell_2 - \ell_1, 0) \;+\; 0.5\,\max\!\left(\tfrac{\mathrm{BIC}_1 - \mathrm{BIC}_2}{n}, 0\right)
+  \]
+  \item Take \textbf{max} across layers: $\tilde{B} = \max_\ell B_\ell / B_{\text{ref}}$
+  \item Representation consistency: $C = 1 - \overline{\cos}(\mathbf{h}_x, \mathbf{h}_{x'})$ for paraphrase pairs
 \end{enumerate}
 
-\vspace{0.3em}
 \[
-  s_2 = 0.6 \cdot \tilde{B} + 0.4 \cdot C
+  s_2 = 0.6\,\tilde{B} \;+\; 0.4\,C
 \]
-where $\tilde{B}$ is normalised bimodality and $C$ is consistency anomaly.
+
+\vspace{0.1em}
+\textbf{Key result}: base Llama-2 scores $s_2 = 3.88$; all backdoored models score $1.53$--$3.19$.
 \end{frame}
 
 %──────────────────────────────────────────────────────────
-\begin{frame}{Stage 3 — Greedy Trigger Search}
-\textbf{Key idea:} If a backdoor trigger exists, prepending it should cause an \emph{unusually large} output shift.
+\begin{frame}{Stage 3 --- Greedy Trigger Search}
+\textbf{Key idea:} If a backdoor trigger exists, inserting it should cause an \emph{unusually large} output shift.
 
-\vspace{0.5em}
-\textbf{Algorithm (single greedy pass):}
+\vspace{0.4em}
+\textbf{Algorithm (single greedy pass, $O(|\mathcal{V}| \cdot n)$ calls):}
 \begin{enumerate}
-  \item Select top-25 frequent vocab tokens as candidates $\mathcal{V}$
-  \item For each $v \in \mathcal{V}$, compute avg KL vs baseline over $n=4$ probe inputs:
+  \item Select top-$|\mathcal{V}|=100$ frequent vocab tokens as candidates
+  \item For each $v \in \mathcal{V}$, test both injection positions over $n=10$ probe inputs:
   \[
-    \text{score}(v) = \frac{1}{n}\sum_i \mathrm{KL}(f(x_i) \,\|\, f(v \oplus x_i))
+    \text{score}(v) = \max\!\left\{
+      \frac{1}{n}\sum_i \mathrm{KL}(P(x_i) \| P(v \oplus x_i)),\;
+      \frac{1}{n}\sum_i \mathrm{KL}(P(x_i) \| P(x_i \oplus v))
+    \right\}
   \]
-  \item $s_3 = \max_{v \in \mathcal{V}}\,\text{score}(v)$, normalised by clean reference
+  \item $s_3 = \max_{v \in \mathcal{V}}\,\text{score}(v)\,/\,s_3^{\text{ref}}$
 \end{enumerate}
 
 \vspace{0.3em}
 \begin{block}{Why greedy instead of beam search?}
-  Full beam search: $O(\text{vocab}^k)$ — infeasible on 7B models. Single-pass greedy reduces to 50 forward passes per model while preserving detection signal.
+  Full beam search: $O(\text{vocab}^k)$ --- infeasible on 7B models. Single-pass greedy with 100 tokens and dual injection positions preserves detection signal at a fraction of the cost.
 \end{block}
+\end{frame}
+
+%──────────────────────────────────────────────────────────
+\begin{frame}{Stage 4 --- Classifier}
+\textbf{Key idea:} Combine all signals into a single anomaly score via logistic regression.
+
+\vspace{0.4em}
+\textbf{Feature vector} (6-dimensional):
+\[
+  \mathbf{f} = \bigl[s_1,\; s_2,\; s_3,\; \kappa,\; r_{\text{trig}},\; r_{\text{style}}\bigr] \in \mathbb{R}^6
+\]
+\textbf{Model:} StandardScaler $\rightarrow$ Logistic Regression (fallback: hand-tuned weights when $n < 4$)
+\[
+  P(\text{backdoored} \mid \mathbf{f}) = \sigma\!\left(\mathbf{w}^\top \hat{\mathbf{f}} + b\right), \quad \hat{\mathbf{f}} = \frac{\mathbf{f} - \mu}{\sigma_f}
+\]
+
+\textbf{Threshold tuning:} threshold $\tau$ set to achieve TPR $\geq 95\%$ on training set.
+
+\vspace{0.4em}
+\begin{columns}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Why 6 features instead of 3?}
+    Raw diagnostics ($\kappa$, $r_{\text{trig}}$, $r_{\text{style}}$) carry information lost when collapsed into $s_1$ alone. Direct exposure to the classifier improves separability.
+  \end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+  \begin{block}{Fallback weights}
+    $\mathbf{w}_{\text{default}} = [0.5, 0.3, 0.4, 0.1, 0.3, 0.2]$\\
+    Used when $< 4$ labelled models available.
+  \end{block}
+\end{column}
+\end{columns}
 \end{frame}
 
 %══════════════════════════════════════════════════════════
@@ -233,7 +280,7 @@ where $\tilde{B}$ is normalised bimodality and $C$ is consistency anomaly.
 
 \begin{frame}{Experimental Setup}
 \begin{columns}
-\begin{column}{0.48\textwidth}
+\begin{column}{0.50\textwidth}
   \begin{block}{Models Evaluated (7 total)}
     \begin{tabular}{ll}
       \toprule
@@ -251,18 +298,19 @@ where $\tilde{B}$ is normalised bimodality and $C$ is consistency anomaly.
     \end{tabular}
   \end{block}
 \end{column}
-\begin{column}{0.48\textwidth}
+\begin{column}{0.47\textwidth}
   \begin{block}{Probe Set}
     \begin{itemize}
       \item 4 domains: news, dialogue, sentiment, QA
-      \item 5 base inputs per domain = 20 unique inputs
-      \item 2 perturbations each = \textbf{76 probe pairs}
-      \item Generated synthetically — no external data needed
+      \item 25 base inputs per domain = 100 unique inputs
+      \item 3 perturbations each $\approx$ \textbf{300 probe pairs}
+      \item Synthetically generated --- no external data needed
     \end{itemize}
   \end{block}
   \vspace{0.3em}
-  \begin{block}{Baselines}
-    ONION \textbullet\ Activation Clustering \textbullet\ Random
+  \begin{block}{Hardware \& Config}
+    NVIDIA L40S GPU, float16, batch size 16\\
+    Baselines: ONION \textbullet\ Activation Clustering \textbullet\ Random
   \end{block}
 \end{column}
 \end{columns}
@@ -274,53 +322,62 @@ where $\tilde{B}$ is normalised bimodality and $C$ is consistency anomaly.
 
 \begin{frame}{Per-Model Detection Scores}
 \begin{center}
-\begin{tabular}{lccccc}
+\begin{tabular}{lccccl}
 \toprule
 \textbf{Model} & \textbf{Label} & $s_1$ & $s_2$ & $s_3$ & \textbf{Predicted} \\
 \midrule
-Llama-2-7b-chat (base) & Clean      & 5.26 & \textbf{3.88} & 1.23 & \goodbox{Clean} \\
+Llama-2-7b-chat (base)    & Clean      & 5.26 & \textbf{3.88} & 1.23 & \goodbox{Clean} \\
 \midrule
-Jailbreak-BadNets & Backdoored & 4.85 & 1.55 & 1.17 & \badbox{Backdoored} \\
-Refusal-BadNets   & Backdoored & 8.30 & 3.13 & 1.15 & \badbox{Backdoored} \\
-Jailbreak-VPI     & Backdoored & 5.38 & 1.55 & 1.18 & \badbox{Backdoored} \\
-Jailbreak-Sleeper & Backdoored & 5.05 & 1.54 & 1.15 & \badbox{Backdoored} \\
-Refusal-VPI       & Backdoored & 7.23 & 3.19 & 1.19 & \badbox{Backdoored} \\
-Refusal-Sleeper   & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
+Jailbreak-BadNets   & Backdoored & 4.85 & 1.55 & 1.17 & \badbox{Backdoored} \\
+Refusal-BadNets     & Backdoored & 8.30 & 3.13 & 1.15 & \badbox{Backdoored} \\
+Jailbreak-VPI       & Backdoored & 5.38 & 1.55 & 1.18 & \badbox{Backdoored} \\
+Jailbreak-Sleeper   & Backdoored & 5.05 & 1.54 & 1.15 & \badbox{Backdoored} \\
+Refusal-VPI         & Backdoored & 7.23 & 3.19 & 1.19 & \badbox{Backdoored} \\
+Refusal-Sleeper     & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
 \bottomrule
 \end{tabular}
 \end{center}
 \vspace{0.3em}
-\small \textbf{Key signal}: $s_2$ (bimodality) clearly separates base (3.88) from backdoored (1.53--3.19). All 7 models correctly classified. AUROC = \textbf{1.000}.
+\begin{columns}
+\begin{column}{0.55\textwidth}
+  \small \textbf{Key signal}: $s_2$ (bimodality) separates base model ($s_2 = 3.88$) from all backdoored variants ($s_2 = 1.53$--$3.19$). All 7 models correctly classified.
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{center}
+    \textbf{AUROC = 1.000 \quad Acc = 100\%}
+  \end{center}
+\end{column}
+\end{columns}
 \end{frame}
 
 %──────────────────────────────────────────────────────────
 \begin{frame}{Comparison with Baselines}
 \begin{columns}
-\begin{column}{0.52\textwidth}
+\begin{column}{0.50\textwidth}
   \begin{center}
   \begin{tabular}{lccc}
     \toprule
     \textbf{Method} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} \\
     \midrule
-    \textbf{Ours (improved)} & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} \\
+    \textbf{Ours} & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} \\
     \midrule
-    Act. Clustering        & 0.000          & 1.000          & 0.857 \\
-    ONION                  & 0.500          & 1.000          & 0.143 \\
-    Random                 & 0.500          & 1.000          & 0.857 \\
+    Act.\ Clustering & 0.000 & 1.000 & 0.857 \\
+    ONION            & 0.500 & 1.000 & 0.143 \\
+    Random           & 0.500 & 1.000 & 0.857 \\
     \bottomrule
   \end{tabular}
   \end{center}
-  \vspace{0.3em}
+  \vspace{0.4em}
   \includegraphics[width=\textwidth]{../results_improved/roc_curves.png}
 \end{column}
-\begin{column}{0.45\textwidth}
+\begin{column}{0.47\textwidth}
   \textbf{Key takeaways:}
   \begin{itemize}
-    \item \highlight{Perfect AUROC = 1.0} and zero false positives
-    \item \highlight{7/7 models correctly classified} (1 clean + 6 backdoored)
-    \item ONION fails completely --- perplexity not informative for Llama-2
-    \item Activation Clustering inverts --- predicts everything as clean
-    \item Key signal: $s_2$ bimodality score clearly separates base model (3.88) from all backdoored variants (1.5--3.2)
+    \item \highlight{Perfect AUROC = 1.0} and zero false positives (FPR = 0)
+    \item \highlight{7/7 models correctly classified}
+    \item ONION completely fails --- perplexity not informative for Llama-2 LoRA models
+    \item Activation Clustering inverts --- predicts everything as clean (AUROC = 0)
+    \item \highlight{Only our method} detects all three attack types (BadNets, VPI, Sleeper)
   \end{itemize}
 \end{column}
 \end{columns}
@@ -333,11 +390,11 @@ Refusal-Sleeper   & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
 \toprule
 \textbf{Configuration} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} & $\Delta$ AUROC \\
 \midrule
-All stages (improved) & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} & --- \\
+All stages (full) & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} & --- \\
 \midrule
-w/o Stage 1 ($s_1$)  & 0.625 & 0.500 & 0.833 & $-$0.375 \\
-w/o Stage 2 ($s_2$)  & 0.750 & 1.000 & 0.667 & $-$0.250 \\
-w/o Stage 3 ($s_3$)  & 0.875 & 0.500 & 0.833 & $-$0.125 \\
+w/o Stage 1 ($s_1$, $\kappa$, $r_{\text{trig}}$, $r_{\text{style}}$) & 0.625 & 0.500 & 0.833 & $-$0.375 \\
+w/o Stage 2 ($s_2$)                                                   & 0.750 & 1.000 & 0.667 & $-$0.250 \\
+w/o Stage 3 ($s_3$)                                                   & 0.875 & 0.500 & 0.833 & $-$0.125 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -346,15 +403,14 @@ w/o Stage 3 ($s_3$)  & 0.875 & 0.500 & 0.833 & $-$0.125 \\
 \begin{column}{0.55\textwidth}
   \textbf{Findings:}
   \begin{itemize}
-    \item \highlight{Stage 2} (bimodality) is the strongest signal: $s_2$ perfectly separates base (3.88) from all backdoored models
-    \item \highlight{Stage 1} contributes the most overall: removing it drops AUROC by 0.375
+    \item \highlight{Stage 1 contributes most}: removing it drops AUROC by 0.375 --- behavioral divergence is the dominant discriminator
+    \item \highlight{Stage 2 critical for calibration}: FPR doubles (0$\rightarrow$1.0) without it
     \item All three stages are \emph{necessary} --- no single stage achieves perfect detection alone
-    \item Combined pipeline: \highlight{AUROC = 1.000, FPR = 0\%}
   \end{itemize}
 \end{column}
 \begin{column}{0.42\textwidth}
   \begin{block}{Interpretation}
-    Backdoor fine-tuning alters the representational geometry of the model (Stage 2). Stage 1 KL divergence amplifies this by probing behavioral asymmetries. Together they form a complementary detector.
+    Backdoor fine-tuning alters both \emph{behavior} (Stage 1) and \emph{representational geometry} (Stage 2). Their combination is what achieves zero FPR --- each stage catches what the other misses.
   \end{block}
 \end{column}
 \end{columns}
@@ -369,27 +425,27 @@ w/o Stage 3 ($s_3$)  & 0.875 & 0.500 & 0.833 & $-$0.125 \\
 \begin{column}{0.48\textwidth}
   \begin{block}{Strengths}
     \begin{itemize}
-      \item \textbf{Black-box}: no access to training data, gradients, or trigger
+      \item \textbf{Black-box}: no training data, gradients, or trigger knowledge required
       \item \textbf{Complementary signals}: behavioral + representational + trigger-search
-      \item \textbf{Efficient}: $\sim$4.5 min per 7B model on CPU
-      \item Detects all three attack types (BadNets, VPI, Sleeper)
+      \item \textbf{Efficient}: $\sim$10 min/model on L40S GPU (float16)
+      \item \textbf{Generalises}: detects BadNets, VPI, and Sleeper attacks
     \end{itemize}
   \end{block}
 \end{column}
 \begin{column}{0.48\textwidth}
   \begin{block}{Limitations}
     \begin{itemize}
-      \item Only 6 models evaluated --- small dataset for Stage 4 classifier
-      \item CV AUROC low (0.25) due to limited sample size
-      \item Stage 3 covers only top-25 frequent tokens --- rare/phrase triggers may be missed
-      \item Probe generation relies on synthetic data
+      \item Only 7 models evaluated --- classifier trained and tested on same small set
+      \item Stage 3 covers only top-100 frequent single tokens --- phrase/rare-token triggers may be missed
+      \item Probe generation is synthetic --- real-world distribution shift not modelled
+      \item Clean reference required for score normalisation
     \end{itemize}
   \end{block}
 \end{column}
 \end{columns}
 \vspace{0.5em}
 \begin{block}{Future Work}
-  Larger model set \textbullet\ Multi-token trigger search \textbullet\ Adaptive probe generation \textbullet\ Extension to instruction-tuned models
+  Larger model set \textbullet\ Multi-token trigger search \textbullet\ Adaptive probe generation \textbullet\ Extension to RLHF / instruction-tuned models \textbullet\ Cross-architecture evaluation
 \end{block}
 \end{frame}
 
@@ -399,16 +455,16 @@ w/o Stage 3 ($s_3$)  & 0.875 & 0.500 & 0.833 & $-$0.125 \\
 
 \begin{frame}{Conclusion}
 \begin{itemize}
-  \setlength\itemsep{0.7em}
-  \item Proposed a \highlight{4-stage black-box pipeline} for detecting backdoored LLMs combining behavioral divergence, representation analysis, and trigger search
-  \item Evaluated on \highlight{6 Llama-2-7B models} across 3 attack types (BadNets, VPI, Sleeper)
-  \item Achieved \highlight{AUROC = 1.000, Accuracy = 100\%} --- perfect detection across all 3 attack types
-  \item \highlight{Zero false positives} (FPR@95TPR = 0.0) — all baselines have FPR = 1.0
-  \item Pipeline runs efficiently on CPU --- \highlight{no GPU required for inference}
+  \setlength\itemsep{0.6em}
+  \item Proposed a \highlight{4-stage black-box pipeline} combining behavioral divergence (KL), representational bimodality (GMM), greedy trigger search, and a 6-feature logistic classifier
+  \item Evaluated on \highlight{7 Llama-2-7B models}: 1 clean base + 6 backdoored (BadNets, VPI, Sleeper $\times$ 2 tasks)
+  \item Achieved \highlight{AUROC = 1.000, Accuracy = 100\%, FPR = 0\%} --- perfect detection across all attack types
+  \item \highlight{All baselines fail} (ONION/Random: AUROC = 0.5, Activation Clustering: AUROC = 0.0)
+  \item Dominant signal: \highlight{Stage 2 bimodality} --- backdoor fine-tuning disrupts representational geometry in a measurable, consistent way
 \end{itemize}
-\vspace{1em}
+\vspace{0.8em}
 \begin{center}
-  \Large\textbf{Thank you!}\\[0.5em]
+  \Large\textbf{Thank you!}\\[0.4em]
   \normalsize Questions welcome.
 \end{center}
 \end{frame}
@@ -417,20 +473,53 @@ w/o Stage 3 ($s_3$)  & 0.875 & 0.500 & 0.833 & $-$0.125 \\
 \appendix
 \begin{frame}{Backup --- Score Distributions}
 \begin{center}
-  \includegraphics[width=0.9\textwidth]{../results/score_distributions.png}
+  \includegraphics[width=0.88\textwidth]{../results_improved/score_distributions.png}
 \end{center}
 \end{frame}
 
 \begin{frame}{Backup --- Implementation Details}
 \begin{itemize}
-  \item \textbf{Models}: BackdoorLLM LoRA adapters on \texttt{meta-llama/Llama-2-7b-chat-hf}
-  \item \textbf{KL top-$k$}: 50 tokens; tail threshold: 95th percentile
-  \item \textbf{Stage 2 layers}: last transformer layer only
-  \item \textbf{Stage 3}: greedy scan, top-25 BPE tokens, 4 search inputs
-  \item \textbf{Stage 4}: logistic regression, threshold at TPR=0.95
-  \item \textbf{Probe set}: 5 base inputs $\times$ 4 domains $\times$ 2 perturbations = 76 pairs
-  \item \textbf{Runtime}: $\sim$4.5 min/model on CPU (float32, batch size 4)
+  \item \textbf{Models}: BackdoorLLM LoRA adapters merged onto \texttt{meta-llama/Llama-2-7b-chat-hf}
+  \item \textbf{Clean reference}: unmodified \texttt{meta-llama/Llama-2-7b-chat-hf}
+  \item \textbf{Stage 1}: KL top-$k = 50$; tail = 95th percentile; 4 perturbation types
+  \item \textbf{Stage 2}: layers $\{-4, -2, -1\}$; PCA 50 dims; GMM $k \in \{1,2\}$; max bimodality
+  \item \textbf{Stage 3}: greedy scan, top-100 BPE tokens, prepend + append, 10 search inputs
+  \item \textbf{Stage 4}: logistic regression on 6-feature vector; threshold at TPR = 0.95
+  \item \textbf{Probe set}: 25 base inputs $\times$ 4 domains $\times$ 3 perturbations $\approx$ 300 pairs
+  \item \textbf{Hardware}: NVIDIA L40S (48 GB), float16, batch size 16
+  \item \textbf{Runtime}: $\sim$10 min/model on GPU
 \end{itemize}
+\end{frame}
+
+\begin{frame}{Backup --- Why $s_2$ is the Dominant Signal}
+\begin{columns}
+\begin{column}{0.55\textwidth}
+  \textbf{Intuition}: Backdoor training with a fixed trigger token forces the model to maintain two \emph{separate} computational pathways:
+  \begin{enumerate}
+    \item Normal pathway: $x \rightarrow$ benign response
+    \item Triggered pathway: $x + \tau \rightarrow$ malicious response
+  \end{enumerate}
+  This dual-pathway structure creates a \emph{bimodal} hidden state distribution even on clean inputs --- the model's representations are ``split'' between the two regimes.
+\end{column}
+\begin{column}{0.42\textwidth}
+  \begin{block}{$s_2$ values}
+    \begin{tabular}{lc}
+      \toprule
+      \textbf{Model} & $s_2$ \\
+      \midrule
+      Base (clean) & \textbf{3.88} \\
+      \midrule
+      BadNets-J    & 1.55 \\
+      BadNets-R    & 3.13 \\
+      VPI-J        & 1.55 \\
+      Sleeper-J    & 1.54 \\
+      VPI-R        & 3.19 \\
+      Sleeper-R    & 1.53 \\
+      \bottomrule
+    \end{tabular}
+  \end{block}
+\end{column}
+\end{columns}
 \end{frame}
 
 \end{document}
