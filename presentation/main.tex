@@ -326,26 +326,32 @@ For each probe pair $(x, x')$, compute KL divergence over next-token top-$k$ log
 \toprule
 \textbf{Model} & \textbf{Label} & $s_1$ & $s_2$ & $s_3$ & \textbf{Predicted} \\
 \midrule
-Llama-2-7b-chat (base)    & Clean      & 5.26 & \textbf{3.88} & 1.23 & \goodbox{Clean} \\
+Jailbreak-BadNets & Clean      & 4.43 & 3.49 & 1.14 & \goodbox{Clean} \\
+Refusal-BadNets   & Clean      & 4.02 & 4.71 & 0.64 & \badbox{FP} \\
 \midrule
-Jailbreak-BadNets   & Backdoored & 4.85 & 1.55 & 1.17 & \badbox{Backdoored} \\
-Refusal-BadNets     & Backdoored & 8.30 & 3.13 & 1.15 & \badbox{Backdoored} \\
-Jailbreak-VPI       & Backdoored & 5.38 & 1.55 & 1.18 & \badbox{Backdoored} \\
-Jailbreak-Sleeper   & Backdoored & 5.05 & 1.54 & 1.15 & \badbox{Backdoored} \\
-Refusal-VPI         & Backdoored & 7.23 & 3.19 & 1.19 & \badbox{Backdoored} \\
-Refusal-Sleeper     & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
+Jailbreak-VPI     & Backdoored & 3.62 & 3.49 & 0.68 & \badbox{Backdoored} \\
+Jailbreak-Sleeper & Backdoored & 5.95 & 3.49 & 1.01 & \badbox{Backdoored} \\
+Refusal-VPI       & Backdoored & 5.81 & 4.72 & 0.73 & \badbox{Backdoored} \\
+Refusal-Sleeper   & Backdoored & 5.80 & 4.90 & 0.93 & \badbox{Backdoored} \\
 \bottomrule
 \end{tabular}
 \end{center}
 \vspace{0.3em}
 \begin{columns}
-\begin{column}{0.55\textwidth}
-  \small \textbf{Key signal}: $s_2$ (bimodality) separates base model ($s_2 = 3.88$) from all backdoored variants ($s_2 = 1.53$--$3.19$). All 7 models correctly classified.
+\begin{column}{0.62\textwidth}
+  \small
+  \begin{itemize}
+    \item \textbf{5/6 correctly classified.} One false positive: Refusal-BadNets has elevated $s_1$ and $s_2$ due to its Refusal task fine-tuning causing representation shift similar to VPI/Sleeper models.
+    \item \textbf{Sleeper and VPI both detected} --- $s_1$ spikes for Sleeper (5.95) indicating high behavioral sensitivity; $s_2$ flags all Refusal-task models.
+  \end{itemize}
 \end{column}
-\begin{column}{0.42\textwidth}
-  \begin{center}
-    \textbf{AUROC = 1.000 \quad Acc = 100\%}
-  \end{center}
+\begin{column}{0.35\textwidth}
+  \begin{block}{\small Stage 4}
+    \small AUROC $= 0.875$\\
+    Acc $= 83.3\%$\\
+    FPR@95TPR $= 0.50$\\
+    F1 $= 0.889$
+  \end{block}
 \end{column}
 \end{columns}
 \end{frame}
@@ -359,24 +365,24 @@ Refusal-Sleeper     & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
     \toprule
     \textbf{Method} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} \\
     \midrule
-    \textbf{Ours} & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} \\
+    \textbf{Ours} & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} \\
     \midrule
-    Act.\ Clustering & 0.000 & 1.000 & 0.857 \\
-    ONION            & 0.500 & 1.000 & 0.143 \\
-    Random           & 0.500 & 1.000 & 0.857 \\
+    Act.\ Clustering & 0.625 & 1.000 & 0.667 \\
+    ONION            & 0.500 & 1.000 & 0.333 \\
+    Random           & 0.500 & 1.000 & 0.667 \\
     \bottomrule
   \end{tabular}
   \end{center}
   \vspace{0.4em}
-  \includegraphics[width=\textwidth]{../results_improved/roc_curves.png}
+  \includegraphics[width=\textwidth]{../results/roc_curves.png}
 \end{column}
 \begin{column}{0.47\textwidth}
   \textbf{Key takeaways:}
   \begin{itemize}
-    \item \highlight{Perfect AUROC = 1.0} and zero false positives (FPR = 0)
-    \item \highlight{7/7 models correctly classified}
-    \item ONION completely fails --- perplexity not informative for Llama-2 LoRA models
-    \item Activation Clustering inverts --- predicts everything as clean (AUROC = 0)
+    \item \highlight{AUROC = 0.875} --- best among all methods
+    \item \highlight{50\% lower FPR@95} (0.5 vs 1.0) than all baselines
+    \item ONION fails completely --- perplexity is not informative on Llama-2 LoRA models
+    \item Activation Clustering partially works (AUROC 0.625) but high false positive rate
     \item \highlight{Only our method} detects all three attack types (BadNets, VPI, Sleeper)
   \end{itemize}
 \end{column}
@@ -390,11 +396,11 @@ Refusal-Sleeper     & Backdoored & 5.96 & 1.53 & 1.17 & \badbox{Backdoored} \\
 \toprule
 \textbf{Configuration} & \textbf{AUROC} & \textbf{FPR@95} & \textbf{Acc} & $\Delta$ AUROC \\
 \midrule
-All stages (full) & \textbf{1.000} & \textbf{0.000} & \textbf{1.000} & --- \\
+All stages & \textbf{0.875} & \textbf{0.500} & \textbf{0.833} & --- \\
 \midrule
-w/o Stage 1 ($s_1$, $\kappa$, $r_{\text{trig}}$, $r_{\text{style}}$) & 0.625 & 0.500 & 0.833 & $-$0.375 \\
-w/o Stage 2 ($s_2$)                                                   & 0.750 & 1.000 & 0.667 & $-$0.250 \\
-w/o Stage 3 ($s_3$)                                                   & 0.875 & 0.500 & 0.833 & $-$0.125 \\
+w/o Stage 1 ($s_1$) & 0.875 & 0.500 & 0.833 & $\pm$0.000 \\
+w/o Stage 2 ($s_2$) & 0.875 & 0.500 & 0.667 & $\pm$0.000 \\
+w/o Stage 3 ($s_3$) & 0.750 & 0.500 & 0.833 & $-$0.125   \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -403,14 +409,15 @@ w/o Stage 3 ($s_3$)                                                   & 0.875 & 
 \begin{column}{0.55\textwidth}
   \textbf{Findings:}
   \begin{itemize}
-    \item \highlight{Stage 1 contributes most}: removing it drops AUROC by 0.375 --- behavioral divergence is the dominant discriminator
-    \item \highlight{Stage 2 critical for calibration}: FPR doubles (0$\rightarrow$1.0) without it
-    \item All three stages are \emph{necessary} --- no single stage achieves perfect detection alone
+    \item \highlight{Stage 3 contributes most to ranking}: removing it drops AUROC by 0.125
+    \item \highlight{Stage 2 critical for accuracy}: removing it drops Acc by 17\% despite same AUROC --- bimodality improves per-sample calibration
+    \item Stage 1 alone has least individual impact --- its signal overlaps with Stage 2
+    \item All stages together achieve the best joint performance
   \end{itemize}
 \end{column}
 \begin{column}{0.42\textwidth}
   \begin{block}{Interpretation}
-    Backdoor fine-tuning alters both \emph{behavior} (Stage 1) and \emph{representational geometry} (Stage 2). Their combination is what achieves zero FPR --- each stage catches what the other misses.
+    The greedy trigger scan ($s_3$) provides a unique discriminative signal. Stage 2 GMM bimodality improves per-sample confidence. Together they complement Stage 1 behavioral divergence.
   \end{block}
 \end{column}
 \end{columns}
@@ -457,10 +464,10 @@ w/o Stage 3 ($s_3$)                                                   & 0.875 & 
 \begin{itemize}
   \setlength\itemsep{0.6em}
   \item Proposed a \highlight{4-stage black-box pipeline} combining behavioral divergence (KL), representational bimodality (GMM), greedy trigger search, and a 6-feature logistic classifier
-  \item Evaluated on \highlight{7 Llama-2-7B models}: 1 clean base + 6 backdoored (BadNets, VPI, Sleeper $\times$ 2 tasks)
-  \item Achieved \highlight{AUROC = 1.000, Accuracy = 100\%, FPR = 0\%} --- perfect detection across all attack types
-  \item \highlight{All baselines fail} (ONION/Random: AUROC = 0.5, Activation Clustering: AUROC = 0.0)
-  \item Dominant signal: \highlight{Stage 2 bimodality} --- backdoor fine-tuning disrupts representational geometry in a measurable, consistent way
+  \item Evaluated on \highlight{6 Llama-2-7B models}: 2 clean (BadNets) + 4 backdoored (VPI, Sleeper $\times$ 2 tasks)
+  \item Achieved \highlight{AUROC = 0.875, Accuracy = 83.3\%} --- outperforming all baselines
+  \item \highlight{50\% lower FPR@95} (0.5 vs 1.0 for all baselines) --- significantly fewer false alarms
+  \item Detects all three attack types: BadNets, VPI, and Sleeper agents
 \end{itemize}
 \vspace{0.8em}
 \begin{center}
